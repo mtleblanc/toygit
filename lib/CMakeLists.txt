@@ -1,5 +1,5 @@
 add_library(core STATIC
-    core.cpp
+    core.cpp zlib.cpp
 )
 
 target_include_directories(core PUBLIC
