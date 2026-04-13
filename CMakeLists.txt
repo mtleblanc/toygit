@@ -12,5 +12,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_link_options(-fsanitize=address,undefined)
 endif()
 
+find_package(ZLIB REQUIRED)
+
 add_subdirectory(lib)
 add_subdirectory(src)
