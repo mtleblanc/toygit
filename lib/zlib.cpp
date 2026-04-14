@@ -1,11 +1,64 @@
 #include "toygit/zlib.hpp"
+#include <print>
 
+#include <cassert>
 #include <stdexcept>
-#include <string>
-#include <vector>
 #include <zlib.h>
 
 namespace toygit {
+template <typename CharT> Bytef *zptr(CharT *c) {
+  return reinterpret_cast<Bytef *>(const_cast<std::remove_cvref_t<CharT> *>(c));
+}
+
+std::tuple<ssize_t, ssize_t> DeflateStream::deflateSome(std::string_view in,
+                                                        std::span<char> out,
+                                                        bool flush) {
+  stream_.next_in = zptr(in.data());
+  stream_.avail_in = std::ssize(in);
+  stream_.next_out = zptr(out.data());
+  stream_.avail_out = std::ssize(out);
+  auto ret = ::deflate(&stream_, flush ? Z_FINISH : Z_NO_FLUSH);
+  assert(ret != Z_STREAM_ERROR);
+  auto read = std::ssize(in) - stream_.avail_in;
+  auto written = std::ssize(out) - stream_.avail_out;
+  return {read, written};
+}
+
+std::string DeflateStream::deflate(std::string_view in) {
+  auto out = std::string(::deflateBound(&stream_, std::ssize(in)), 0);
+  auto [r, w] = deflateSome(in, out, Z_FINISH);
+  assert(r == std::ssize(in));
+  return out;
+}
+
+std::tuple<ssize_t, ssize_t> InflateStream::inflateSome(std::string_view in,
+                                                        std::span<char> out,
+                                                        bool flush) {
+  stream_.next_in = zptr(in.data());
+  stream_.avail_in = std::ssize(in);
+  stream_.next_out = zptr(out.data());
+  stream_.avail_out = std::ssize(out);
+  auto ret = ::inflate(&stream_, flush ? Z_FINISH : Z_NO_FLUSH);
+  assert(ret != Z_STREAM_ERROR);
+  auto read = std::ssize(in) - stream_.avail_in;
+  auto written = std::ssize(out) - stream_.avail_out;
+  return {read, written};
+}
+
+std::string InflateStream::inflate(std::string_view in) {
+  static constexpr auto CHUNK = 1024 * 16Z;
+
+  auto out = std::string{};
+  auto buf = std::string(CHUNK, 0);
+  do {
+    buf.resize(CHUNK);
+    auto [r, w] = inflateSome(in, buf, Z_FINISH);
+    in = in.substr(r);
+    buf.resize(w);
+    out.append(buf);
+  } while (!buf.empty());
+  return out;
+}
 
 std::vector<char> deflate(const std::vector<char> &input) {
   z_stream s{};

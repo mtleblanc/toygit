@@ -1,12 +1,14 @@
 #include "toygit/zlib.hpp"
+#include <fstream>
 #include <iostream>
-#include <vector>
 
 int main() {
-  std::vector<char> content{std::istreambuf_iterator<char>{std::cin},
-                            std::istreambuf_iterator<char>{}};
-  std::vector<char> inflated = toygit::inflate(content, content.size() * 16);
-  std::string str{inflated.begin(), inflated.end()};
-  std::cout << str;
+  auto ifs =
+      std::ifstream{".git/objects/b3/a163ebd0a3290dad353cafe1fd8e5dd4e08aa4"};
+  auto content = std::string{std::istreambuf_iterator<char>{ifs},
+                             std::istreambuf_iterator<char>{}};
+  auto is = toygit::InflateStream{};
+  auto inflated = is.inflate(content);
+  std::cout << inflated;
   return 0;
 }
