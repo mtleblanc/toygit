@@ -54,4 +54,17 @@ void storeObject(std::string_view object) {
   }
 }
 
+void storeBlob(std::string_view blob) {
+  auto data = std::string{"blob "};
+  auto sz =
+      std::array<char,
+                 std::numeric_limits<std::string_view::size_type>::digits10>{};
+  auto [ptr, ec] = std::to_chars(sz.begin(), sz.end(), blob.size());
+  data.append(sz.begin(), ptr);
+  data.append(1, 0);
+  data.append(blob);
+  std::println("{}", data);
+  storeObject(data);
+}
+
 } // namespace toygit
