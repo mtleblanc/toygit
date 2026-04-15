@@ -1,7 +1,9 @@
 #pragma once
 
+#include <string_view>
+
 namespace toygit {
 
-// placeholder
+void storeObject(std::string_view object);
 
 } // namespace toygit

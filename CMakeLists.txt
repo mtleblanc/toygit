@@ -19,6 +19,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 find_package(ZLIB REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 add_subdirectory(lib)
 add_subdirectory(src)

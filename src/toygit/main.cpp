@@ -1,3 +1,4 @@
+#include "toygit/core.hpp"
 #include "toygit/zlib.hpp"
 #include <fstream>
 #include <iostream>
@@ -9,6 +10,7 @@ int main() {
                              std::istreambuf_iterator<char>{}};
   auto is = toygit::InflateStream{};
   auto inflated = is.inflate(content);
-  std::cout << inflated;
+  std::cout << inflated << std::endl;
+  toygit::storeObject(inflated);
   return 0;
 }
