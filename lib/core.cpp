@@ -34,10 +34,11 @@ void writeObject(std::string_view object, const std::filesystem::path &path) {
   ofs << deflated;
 }
 
-std::string blobContent(std::string_view text) {
+std::string packageContent(std::string_view type, std::string_view text) {
   static constexpr auto MAX_DIGITS =
       std::numeric_limits<std::string_view::size_type>::digits10;
-  auto data = std::string{"blob "};
+  auto data = std::string{type};
+  data.append(" ");
   auto sz = std::array<char, MAX_DIGITS>{};
   auto [ptr, ec] = std::to_chars(sz.begin(), sz.end(), text.size());
   assert(ec != std::errc::value_too_large);
@@ -47,15 +48,6 @@ std::string blobContent(std::string_view text) {
   return data;
 }
 } // namespace
-
-Blob::Blob(std::string_view text) : content_{blobContent(text)} {}
-
-std::string_view Blob::content() { return content_; }
-std::string_view Blob::text() {
-  auto endOfHeader = std::ranges::find(content_, 0);
-  assert(endOfHeader != content_.end());
-  return std::string_view{std::next(endOfHeader, 1), content_.end()};
-}
 
 Id Object::id() {
   auto hasher = Hasher::sha1Hasher();
@@ -80,5 +72,37 @@ void Object::store() {
     throw std::runtime_error{"DB object of unknown type"};
   }
 }
+
+Blob::Blob(std::string_view text) : content_{packageContent("blob", text)} {}
+
+std::string_view Blob::content() { return content_; }
+std::string_view Blob::text() {
+  auto endOfHeader = std::ranges::find(content_, 0);
+  assert(endOfHeader != content_.end());
+  return std::string_view{std::next(endOfHeader, 1), content_.end()};
+}
+
+std::shared_ptr<Blob> Blob::buildFrom(std::filesystem::path path) {
+  auto ifs = std::ifstream{path};
+  auto text = std::string{std::istreambuf_iterator<char>{ifs},
+                          std::istreambuf_iterator<char>{}};
+  return std::make_shared<Blob>(std::move(text));
+}
+
+std::string_view Tree::content() {
+  if (!content_.empty()) {
+    return content_;
+  }
+  std::string text{};
+  for (const auto &[name, id] : children_) {
+    // TODO: store mode
+    text.append("100644 ");
+    text.append(name);
+    text.append(1, 0);
+    text.append(id.begin(), id.end());
+  }
+  return content_ = packageContent("tree", text);
+}
+std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path) { return {}; }
 
 } // namespace toygit

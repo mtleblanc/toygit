@@ -47,7 +47,8 @@ public:
   static std::shared_ptr<Tree> buildFrom(std::filesystem::path);
 
 private:
-  std::map<std::string, Id> children;
+  std::map<std::string, Id> children_;
+  std::string content_;
 };
 
 } // namespace toygit
