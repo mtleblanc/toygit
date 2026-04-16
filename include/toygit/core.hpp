@@ -46,8 +46,10 @@ public:
   std::string_view content() override;
   static std::shared_ptr<Tree> buildFrom(std::filesystem::path);
 
+  using Mode = std::array<char, 6>;
+
 private:
-  std::map<std::string, Id> children_;
+  std::map<std::string, std::tuple<Id, Mode>> children_;
   std::string content_;
 };
 

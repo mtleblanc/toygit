@@ -87,22 +87,54 @@ std::shared_ptr<Blob> Blob::buildFrom(std::filesystem::path path) {
   auto text = std::string{std::istreambuf_iterator<char>{ifs},
                           std::istreambuf_iterator<char>{}};
   return std::make_shared<Blob>(std::move(text));
-}
-
+};
 std::string_view Tree::content() {
   if (!content_.empty()) {
     return content_;
   }
   std::string text{};
-  for (const auto &[name, id] : children_) {
-    // TODO: store mode
-    text.append("100644 ");
+  for (const auto &[name, idMode] : children_) {
+    auto [id, mode] = idMode;
+    text.append(mode.begin(), mode.end());
     text.append(name);
     text.append(1, 0);
     text.append(id.begin(), id.end());
   }
   return content_ = packageContent("tree", text);
 }
-std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path) { return {}; }
+
+std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
+  auto ec = std::error_code{};
+  auto status = std::filesystem::status(path, ec);
+  if (status.type() != std::filesystem::file_type::directory) {
+    return {};
+  }
+  auto res = std::make_shared<Tree>();
+  for (auto &de : std::filesystem::directory_iterator(path)) {
+    if (de.is_directory() && de.path().filename() != ".git" &&
+        de.path().filename() != "build") {
+      auto thisPath = de.path();
+      auto entry = buildFrom(thisPath);
+      if (entry) {
+        entry->store();
+        res->children_[thisPath.filename()] = std::make_tuple(
+            entry->id(), std::array<char, 6>{{'0', '4', '0', '0', '0', '0'}});
+      }
+    }
+    if (de.is_regular_file()) {
+      auto thisPath = de.path();
+      auto entry = Blob::buildFrom(thisPath);
+      if (entry) {
+        entry->store();
+        auto perms = de.status().permissions();
+        auto mode = std::array<char, 6>{{'1', '0', '0', '0', '0', '0'}};
+        std::format_to(mode.begin() + 2, "{:04o}", static_cast<int>(perms));
+        res->children_[thisPath.filename()] =
+            std::make_tuple(entry->id(), std::array<char, 6>{});
+      }
+    }
+  }
+  return res;
+}
 
 } // namespace toygit
