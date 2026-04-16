@@ -20,6 +20,11 @@ public:
 
   ~DeflateStream() { deflateEnd(&stream_); }
 
+  static std::string deflateOnce(std::string_view in) {
+    DeflateStream ds;
+    return ds.deflate(in);
+  }
+
 private:
   z_stream stream_{};
 };
@@ -34,6 +39,11 @@ public:
                                            std::span<char> out, bool flush);
   std::string inflate(std::string_view in);
   ~InflateStream() { inflateEnd(&stream_); }
+
+  static std::string inflateOnce(std::string_view in) {
+    InflateStream is;
+    return is.inflate(in);
+  }
 
 private:
   z_stream stream_{};

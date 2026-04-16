@@ -10,12 +10,8 @@
 namespace toygit {
 
 std::string hex(uint8_t byte) {
-  static constexpr std::array<char, 16> bytes = {{'0', '1', '2', '3', '4', '5',
-                                                  '6', '7', '8', '9', 'a', 'b',
-                                                  'c', 'd', 'e', 'f'}};
   auto ret = std::string(2, 0);
-  ret[0] = bytes[byte >> 4];
-  ret[1] = bytes[byte & 0xF];
+  std::format_to(ret.begin(), "{:02x}", byte);
   return ret;
 }
 
@@ -33,17 +29,18 @@ void storeBlob(std::string_view blob) { Blob{blob}.store(); }
 namespace {
 
 void writeObject(std::string_view object, const std::filesystem::path &path) {
-  auto ds = DeflateStream{};
-  auto deflated = ds.deflate(object);
+  auto deflated = DeflateStream::deflateOnce(object);
   auto ofs = std::ofstream{path};
   ofs << deflated;
 }
+
 std::string blobContent(std::string_view text) {
   static constexpr auto MAX_DIGITS =
       std::numeric_limits<std::string_view::size_type>::digits10;
   auto data = std::string{"blob "};
   auto sz = std::array<char, MAX_DIGITS>{};
   auto [ptr, ec] = std::to_chars(sz.begin(), sz.end(), text.size());
+  assert(ec != std::errc::value_too_large);
   data.append(sz.begin(), ptr);
   data.append(1, 0);
   data.append(text);
