@@ -1,13 +1,13 @@
 #include "toygit/core.hpp"
 #include "toygit/hash.hpp"
 #include "toygit/zlib.hpp"
+#include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <print>
 #include <stdexcept>
 
 namespace toygit {
-constexpr auto DIGLEN = 20;
 
 std::string hex(uint8_t byte) {
   static constexpr std::array<char, 16> bytes = {{'0', '1', '2', '3', '4', '5',
@@ -21,11 +21,16 @@ std::string hex(uint8_t byte) {
 
 std::string hexString(std::span<uint8_t> bytes) {
   auto ret = std::string{};
+  ret.reserve(bytes.size() * 2);
   for (auto b : bytes) {
     ret.append(hex(b));
   }
   return ret;
 }
+
+void storeBlob(std::string_view blob) { Blob{blob}.store(); }
+
+namespace {
 
 void writeObject(std::string_view object, const std::filesystem::path &path) {
   auto ds = DeflateStream{};
@@ -33,11 +38,36 @@ void writeObject(std::string_view object, const std::filesystem::path &path) {
   auto ofs = std::ofstream{path};
   ofs << deflated;
 }
+std::string blobContent(std::string_view text) {
+  static constexpr auto MAX_DIGITS =
+      std::numeric_limits<std::string_view::size_type>::digits10;
+  auto data = std::string{"blob "};
+  auto sz = std::array<char, MAX_DIGITS>{};
+  auto [ptr, ec] = std::to_chars(sz.begin(), sz.end(), text.size());
+  data.append(sz.begin(), ptr);
+  data.append(1, 0);
+  data.append(text);
+  return data;
+}
+} // namespace
 
-void storeObject(std::string_view object) {
+Blob::Blob(std::string_view text) : content_{blobContent(text)} {}
+
+std::string_view Blob::content() { return content_; }
+std::string_view Blob::text() {
+  auto endOfHeader = std::ranges::find(content_, 0);
+  assert(endOfHeader != content_.end());
+  return std::string_view{std::next(endOfHeader, 1), content_.end()};
+}
+
+Id Object::id() {
   auto hasher = Hasher::sha1Hasher();
-  auto digest = hasher.digest<DIGLEN>(object);
-  auto dir = std::filesystem::path{".git/objects"};
+  return hasher.digest<std::tuple_size_v<Id>>(content());
+}
+
+void Object::store() {
+  auto digest = id();
+  auto dir = std::filesystem::path{".git/objects2"};
   dir.append(hex(digest[0]));
   std::filesystem::create_directories(dir);
   dir.append(hexString(std::span(digest).subspan(1)));
@@ -48,23 +78,10 @@ void storeObject(std::string_view object) {
     return;
   case not_found:
     std::print("Writing object {}", hexString(digest));
-    return writeObject(object, dir);
+    return writeObject(content(), dir);
   default:
     throw std::runtime_error{"DB object of unknown type"};
   }
-}
-
-void storeBlob(std::string_view blob) {
-  auto data = std::string{"blob "};
-  auto sz =
-      std::array<char,
-                 std::numeric_limits<std::string_view::size_type>::digits10>{};
-  auto [ptr, ec] = std::to_chars(sz.begin(), sz.end(), blob.size());
-  data.append(sz.begin(), ptr);
-  data.append(1, 0);
-  data.append(blob);
-  std::println("{}", data);
-  storeObject(data);
 }
 
 } // namespace toygit
