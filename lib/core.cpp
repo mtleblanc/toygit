@@ -63,10 +63,10 @@ void Object::store() {
   switch (std::filesystem::status(dir).type()) {
     using enum std::filesystem::file_type;
   case regular:
-    std::print("Object {} exists", hexString(digest));
+    std::println("Object {} exists", hexString(digest));
     return;
   case not_found:
-    std::print("Writing object {}", hexString(digest));
+    std::println("Writing object {}", hexString(digest));
     return writeObject(content(), dir);
   default:
     throw std::runtime_error{"DB object of unknown type"};
@@ -95,7 +95,12 @@ std::string_view Tree::content() {
   std::string text{};
   for (const auto &[name, idMode] : children_) {
     auto [id, mode] = idMode;
-    text.append(mode.begin(), mode.end());
+    if (mode[0] == '0') {
+      text.append(mode.begin() + 1, mode.end());
+    } else {
+      text.append(mode.begin(), mode.end());
+    }
+    text.append(" ");
     text.append(name);
     text.append(1, 0);
     text.append(id.begin(), id.end());
@@ -112,7 +117,7 @@ std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
   auto res = std::make_shared<Tree>();
   for (auto &de : std::filesystem::directory_iterator(path)) {
     if (de.is_directory() && de.path().filename() != ".git" &&
-        de.path().filename() != "build") {
+        de.path().filename() != "build" && de.path().filename() != ".cache") {
       auto thisPath = de.path();
       auto entry = buildFrom(thisPath);
       if (entry) {
@@ -126,11 +131,9 @@ std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
       auto entry = Blob::buildFrom(thisPath);
       if (entry) {
         entry->store();
-        auto perms = de.status().permissions();
-        auto mode = std::array<char, 6>{{'1', '0', '0', '0', '0', '0'}};
-        std::format_to(mode.begin() + 2, "{:04o}", static_cast<int>(perms));
+        auto mode = std::array<char, 6>{{'1', '0', '0', '6', '4', '4'}};
         res->children_[thisPath.filename()] =
-            std::make_tuple(entry->id(), std::array<char, 6>{});
+            std::make_tuple(entry->id(), mode);
       }
     }
   }

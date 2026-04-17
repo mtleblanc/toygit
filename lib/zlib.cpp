@@ -27,6 +27,7 @@ std::tuple<ssize_t, ssize_t> DeflateStream::deflateSome(std::string_view in,
 std::string DeflateStream::deflate(std::string_view in) {
   auto out = std::string(::deflateBound(&stream_, std::ssize(in)), 0);
   auto [r, w] = deflateSome(in, out, Z_FINISH);
+  out.resize(w);
   assert(r == std::ssize(in));
   return out;
 }
