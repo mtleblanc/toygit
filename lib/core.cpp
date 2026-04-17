@@ -56,7 +56,7 @@ Id Object::id() {
 
 void Object::store() {
   auto digest = id();
-  auto dir = std::filesystem::path{".git/objects2"};
+  auto dir = std::filesystem::path{".git/objects"};
   dir.append(hex(digest[0]));
   std::filesystem::create_directories(dir);
   dir.append(hexString(std::span(digest).subspan(1)));
@@ -140,4 +140,32 @@ std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
   return res;
 }
 
+std::string_view Commit::content() {
+  if (!content_.empty()) {
+    return content_;
+  }
+  std::string text{};
+  text.append("tree ");
+  text.append(hexString(tree_));
+  text.append("\n");
+  if (parent_) {
+    text.append("parent ");
+    text.append(*parent_);
+    text.append("\n");
+  }
+  text.append("author ");
+  text.append(author_);
+  text.append(" ");
+  text.append(std::format("{}", timestamp_));
+  text.append("\n");
+  text.append("committer ");
+  text.append(author_);
+  text.append(" ");
+  text.append(std::format("{}", timestamp_));
+  text.append("\n");
+  text.append("\n");
+  text.append(message_);
+  text.append("\n");
+  return content_ = packageContent("commit", text);
+}
 } // namespace toygit
