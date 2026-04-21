@@ -88,6 +88,23 @@ std::shared_ptr<Blob> Blob::buildFrom(std::filesystem::path path) {
                           std::istreambuf_iterator<char>{}};
   return std::make_shared<Blob>(std::move(text));
 };
+
+namespace {
+const std::string &modeString(Tree::Mode m) {
+  static auto DIR = std::string{"40000"};
+  static auto REGULAR = std::string{"100644"};
+  static auto EXECUTABLE = std::string{"100755"};
+  switch (m) {
+  case Tree::Mode::DIRECTORY:
+    return DIR;
+  case Tree::Mode::REGUALAR_FILE:
+    return REGULAR;
+  case Tree::Mode::EXECUTABLE_FILE:
+    return EXECUTABLE;
+  }
+}
+} // namespace
+
 std::string_view Tree::content() {
   if (!content_.empty()) {
     return content_;
@@ -95,11 +112,7 @@ std::string_view Tree::content() {
   std::string text{};
   for (const auto &[name, idMode] : children_) {
     auto [id, mode] = idMode;
-    if (mode[0] == '0') {
-      text.append(mode.begin() + 1, mode.end());
-    } else {
-      text.append(mode.begin(), mode.end());
-    }
+    text.append(modeString(mode));
     text.append(" ");
     text.append(name);
     text.append(1, 0);
@@ -109,21 +122,22 @@ std::string_view Tree::content() {
 }
 
 std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
+  namespace fs = std::filesystem;
   auto ec = std::error_code{};
-  auto status = std::filesystem::status(path, ec);
-  if (status.type() != std::filesystem::file_type::directory) {
+  auto status = fs::status(path, ec);
+  if (status.type() != fs::file_type::directory) {
     return {};
   }
   auto res = std::make_shared<Tree>();
-  for (auto &de : std::filesystem::directory_iterator(path)) {
+  for (auto &de : fs::directory_iterator(path)) {
     if (de.is_directory() && de.path().filename() != ".git" &&
         de.path().filename() != "build" && de.path().filename() != ".cache") {
       auto thisPath = de.path();
       auto entry = buildFrom(thisPath);
       if (entry) {
         entry->store();
-        res->children_[thisPath.filename()] = std::make_tuple(
-            entry->id(), std::array<char, 6>{{'0', '4', '0', '0', '0', '0'}});
+        res->children_[thisPath.filename()] =
+            std::make_tuple(entry->id(), Tree::Mode::DIRECTORY);
       }
     }
     if (de.is_regular_file()) {
@@ -131,9 +145,11 @@ std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
       auto entry = Blob::buildFrom(thisPath);
       if (entry) {
         entry->store();
-        auto mode = std::array<char, 6>{{'1', '0', '0', '6', '4', '4'}};
-        res->children_[thisPath.filename()] =
-            std::make_tuple(entry->id(), mode);
+        auto isExecutable = (de.status().permissions() &
+                             fs::perms::owner_exec) == fs::perms::none;
+        res->children_[thisPath.filename()] = std::make_tuple(
+            entry->id(), isExecutable ? Tree::Mode::EXECUTABLE_FILE
+                                      : Tree::Mode::REGUALAR_FILE);
       }
     }
   }

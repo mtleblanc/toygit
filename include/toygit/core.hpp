@@ -44,10 +44,9 @@ private:
 
 class Tree : public Object {
 public:
+  enum class Mode { DIRECTORY, REGUALAR_FILE, EXECUTABLE_FILE };
   std::string_view content() override;
   static std::shared_ptr<Tree> buildFrom(std::filesystem::path);
-
-  using Mode = std::array<char, 6>;
 
 private:
   std::map<std::string, std::tuple<Id, Mode>> children_;
