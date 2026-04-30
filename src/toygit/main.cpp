@@ -1,37 +1,30 @@
-#include "toygit/core.hpp"
+#include "toygit/commit.hpp"
 #include "toygit/zlib.hpp"
 #include <cassert>
-#include <fstream>
+#include <print>
 
 using namespace toygit;
 
-int main() {
-  auto d = Tree::buildFrom(std::filesystem::path{"."});
-  d->store();
-  auto is = std::ifstream{".git/HEAD"};
-  std::string ref;
-  std::string headPath;
-  is >> ref >> headPath;
-  assert(ref == "ref:");
-  auto headRefPath = std::filesystem::path(".git");
-  headRefPath.append(headPath);
-  std::optional<std::string> parent{};
-  if (std::filesystem::status(headRefPath).type() !=
-      std::filesystem::file_type::not_found) {
-    parent = std::string{};
-    auto ifs = std::ifstream{headRefPath};
-    ifs >> *parent;
+void printUsage(std::string_view programName) {
+  std::println("Usage: {} <command> <command-args...>", programName);
+  std::println("Commands:");
+  std::println("  init");
+  std::println("  commit");
+  std::println("  add");
+}
+
+int main(int argc, char *argv[]) {
+  std::string programName{argv[0]};
+  std::vector<std::string> args(argv + 1, argv + argc);
+  if (args.empty()) {
+    printUsage(programName);
+    return 0;
   }
 
-  auto commit = Commit{d->id(), parent, "Michael LeBlanc",
-                       std::chrono::duration_cast<std::chrono::seconds>(
-                           std::chrono::system_clock::now().time_since_epoch())
-                           .count(),
-                       "Message"};
-  commit.store();
+  if (args[0] == "commit") {
+    doCommit();
+    return 0;
+  }
 
-  auto ofs = std::ofstream{headRefPath};
-  auto id = commit.id();
-  ofs << hexString(id);
   return 0;
 }

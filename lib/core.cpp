@@ -6,6 +6,7 @@
 #include <fstream>
 #include <print>
 #include <stdexcept>
+#include <utility>
 
 namespace toygit {
 
@@ -101,6 +102,8 @@ const std::string &modeString(Tree::Mode m) {
     return REGULAR;
   case Tree::Mode::EXECUTABLE_FILE:
     return EXECUTABLE;
+  default:
+    std::unreachable();
   }
 }
 } // namespace
