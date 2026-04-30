@@ -1,6 +1,7 @@
 add_library(core STATIC
     commit.cpp
     core.cpp
+    lockfile.cpp
     zlib.cpp
 )
 
