@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
     Lockfile test{{"testlock"}};
     test.write("testing2");
 
-    test.release();
+    test.commit();
   }
 
   return 0;

@@ -1,5 +1,6 @@
 #include "toygit/lockfile.hpp"
 #include <fcntl.h>
+#include <tuple>
 #include <utility>
 
 namespace toygit {
@@ -17,7 +18,9 @@ Lockfile::~Lockfile() {
   switch (state_) {
 
   case State::Open:
-    (void)release();
+    // TODO: can't do much if this fails in the destructor, but we should at
+    // least log
+    std::ignore = release();
     break;
   case State::Committed:
   case State::Released:
@@ -28,25 +31,28 @@ Lockfile::~Lockfile() {
 Result<void> Lockfile::write(std::string_view sv) { return lf_.writeAll(sv); }
 
 Result<void> Lockfile::commit() {
-  (void)lf_.fsync();
-  (void)lf_.close();
-  std::error_code ec;
-  std::filesystem::rename(lockFile_, file_, ec);
-  if (ec) {
-    return std::unexpected(ec);
-  }
-  state_ = State::Committed;
-  return {};
+  return lf_.fsync()
+      .and_then([this] { return lf_.close(); })
+      .and_then([this] -> Result<void> {
+        std::error_code ec;
+        std::filesystem::rename(lockFile_, file_, ec);
+        if (ec) {
+          return std::unexpected(ec);
+        }
+        state_ = State::Committed;
+        return {};
+      });
 }
 
 Result<void> Lockfile::release() {
-  (void)lf_.close();
-  std::error_code ec;
-  std::filesystem::remove(lockFile_, ec);
-  if (ec) {
-    return std::unexpected(ec);
-  }
-  state_ = State::Released;
-  return {};
+  return lf_.close().and_then([this] -> Result<void> {
+    std::error_code ec;
+    std::filesystem::remove(lockFile_, ec);
+    if (ec) {
+      return std::unexpected(ec);
+    }
+    state_ = State::Released;
+    return {};
+  });
 }
 } // namespace toygit
