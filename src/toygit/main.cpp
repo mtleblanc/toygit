@@ -1,7 +1,8 @@
 #include "toygit/commit.hpp"
-#include "toygit/zlib.hpp"
+#include "toygit/lockfile.hpp"
 #include <cassert>
 #include <print>
+#include <vector>
 
 using namespace toygit;
 
@@ -24,6 +25,13 @@ int main(int argc, char *argv[]) {
   if (args[0] == "commit") {
     doCommit();
     return 0;
+  }
+
+  if (args[0] == "add") {
+    Lockfile test{{"testlock"}};
+    test.write("testing2");
+
+    test.release();
   }
 
   return 0;

@@ -1,32 +1,12 @@
-#include "toygit/file.hpp"
+#include "toygit/lockfile.hpp"
 #include <fcntl.h>
-#include <filesystem>
-#include <unistd.h>
 #include <utility>
+
 namespace toygit {
-
-class Lockfile {
-public:
-  Lockfile(std::filesystem::path file);
-  ~Lockfile();
-
-  Result<void> write(std::string_view sv);
-  Result<void> commit();
-  Result<void> release();
-
-private:
-  enum class State { Open, Committed, Released };
-
-  State state_ = State::Open;
-  std::filesystem::path file_;
-  std::filesystem::path lockFile_;
-  File lf_;
-};
-
 Lockfile::Lockfile(std::filesystem::path file)
     : file_{file}, lockFile_{std::move(file)} {
   lockFile_ += ".lock";
-  auto fd = open(lockFile_.c_str(), O_CREAT | O_EXCL);
+  auto fd = open(lockFile_.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0644);
   if (fd < 0) {
     throw std::make_error_code(static_cast<std::errc>(errno));
   }
@@ -55,6 +35,7 @@ Result<void> Lockfile::commit() {
   if (ec) {
     return std::unexpected(ec);
   }
+  state_ = State::Committed;
   return {};
 }
 
@@ -65,6 +46,7 @@ Result<void> Lockfile::release() {
   if (ec) {
     return std::unexpected(ec);
   }
+  state_ = State::Released;
   return {};
 }
 } // namespace toygit

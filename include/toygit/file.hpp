@@ -1,4 +1,6 @@
 
+#pragma once
+
 #include "toygit/util.hpp"
 #include <unistd.h>
 #include <utility>

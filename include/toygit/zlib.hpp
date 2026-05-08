@@ -1,3 +1,5 @@
+#pragma once
+
 #include "toygit/util.hpp"
 #include <span>
 #include <stdexcept>
