@@ -90,11 +90,16 @@ std::shared_ptr<Blob> Blob::buildFrom(std::filesystem::path path) {
   return std::make_shared<Blob>(std::move(text));
 };
 
+std::shared_ptr<Blob> Blob::buildFromSymlink(std::filesystem::path path) {
+  return std::make_shared<Blob>(std::filesystem::read_symlink(path).string());
+};
+
 namespace {
 const std::string &modeString(Tree::Mode m) {
   static auto DIR = std::string{"40000"};
   static auto REGULAR = std::string{"100644"};
   static auto EXECUTABLE = std::string{"100755"};
+  static auto SYMLINK = std::string{"120000"};
   switch (m) {
   case Tree::Mode::DIRECTORY:
     return DIR;
@@ -102,6 +107,8 @@ const std::string &modeString(Tree::Mode m) {
     return REGULAR;
   case Tree::Mode::EXECUTABLE_FILE:
     return EXECUTABLE;
+  case Tree::Mode::SYMLINK:
+    return SYMLINK;
   default:
     std::unreachable();
   }
@@ -155,8 +162,8 @@ std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
     if (shouldIgnore(de)) {
       continue;
     }
+    auto thisPath = de.path();
     if (de.is_directory()) {
-      auto thisPath = de.path();
       auto entry = buildFrom(thisPath);
       if (entry) {
         entry->store();
@@ -164,8 +171,14 @@ std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
             std::make_tuple(entry->id(), Tree::Mode::DIRECTORY);
       }
     }
-    if (de.is_regular_file()) {
-      auto thisPath = de.path();
+    if (de.is_symlink()) {
+      auto entry = Blob::buildFromSymlink(thisPath);
+      if (entry) {
+        entry->store();
+        res->children_[thisPath.filename()] =
+            std::make_tuple(entry->id(), Tree::Mode::SYMLINK);
+      }
+    } else if (de.is_regular_file()) {
       auto entry = Blob::buildFrom(thisPath);
       if (entry) {
         entry->store();

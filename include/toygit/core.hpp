@@ -37,6 +37,7 @@ public:
   std::string_view text();
 
   static std::shared_ptr<Blob> buildFrom(std::filesystem::path);
+  static std::shared_ptr<Blob> buildFromSymlink(std::filesystem::path);
 
 private:
   std::string content_;
@@ -44,7 +45,7 @@ private:
 
 class Tree : public Object {
 public:
-  enum class Mode { DIRECTORY, REGUALAR_FILE, EXECUTABLE_FILE };
+  enum class Mode { DIRECTORY, REGUALAR_FILE, EXECUTABLE_FILE, SYMLINK };
   std::string_view content() override;
   static std::shared_ptr<Tree> buildFrom(std::filesystem::path);
 
