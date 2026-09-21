@@ -5,7 +5,6 @@
 #include <filesystem>
 #include <fstream>
 #include <print>
-#include <queue>
 #include <stdexcept>
 #include <utility>
 
@@ -171,7 +170,7 @@ std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
       if (entry) {
         entry->store();
         auto isExecutable = (de.status().permissions() &
-                             fs::perms::owner_exec) == fs::perms::none;
+                             fs::perms::owner_exec) != fs::perms::none;
         res->children_[thisPath.filename()] = std::make_tuple(
             entry->id(), isExecutable ? Tree::Mode::EXECUTABLE_FILE
                                       : Tree::Mode::REGUALAR_FILE);
