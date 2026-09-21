@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <print>
+#include <queue>
 #include <stdexcept>
 #include <utility>
 
@@ -57,7 +58,7 @@ Id Object::id() {
 
 void Object::store() {
   auto digest = id();
-  auto dir = std::filesystem::path{".git/objects"};
+  auto dir = std::filesystem::path{".toygit/objects"};
   dir.append(hex(digest[0]));
   std::filesystem::create_directories(dir);
   dir.append(hexString(std::span(digest).subspan(1)));
@@ -115,6 +116,10 @@ std::string_view Tree::content() {
   std::string text{};
   for (const auto &[name, idMode] : children_) {
     auto [id, mode] = idMode;
+    auto nameView = std::string_view{name};
+    if (nameView.ends_with('/')) {
+      nameView.remove_suffix(1);
+    }
     text.append(modeString(mode));
     text.append(" ");
     text.append(name);
@@ -122,6 +127,21 @@ std::string_view Tree::content() {
     text.append(id.begin(), id.end());
   }
   return content_ = packageContent("tree", text);
+}
+
+bool shouldIgnore(const std::filesystem::directory_entry &de) {
+  if (de.is_regular_file()) {
+    return false;
+  }
+  if (de.is_directory()) {
+    auto filename = de.path().filename();
+    if (filename == "build" || filename == ".cache" || filename == ".git" ||
+        filename == ".toygit") {
+      return true;
+    }
+    return false;
+  }
+  return true;
 }
 
 std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
@@ -133,13 +153,15 @@ std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
   }
   auto res = std::make_shared<Tree>();
   for (auto &de : fs::directory_iterator(path)) {
-    if (de.is_directory() && de.path().filename() != ".git" &&
-        de.path().filename() != "build" && de.path().filename() != ".cache") {
+    if (shouldIgnore(de)) {
+      continue;
+    }
+    if (de.is_directory()) {
       auto thisPath = de.path();
       auto entry = buildFrom(thisPath);
       if (entry) {
         entry->store();
-        res->children_[thisPath.filename()] =
+        res->children_[thisPath.filename().string() + "/"] =
             std::make_tuple(entry->id(), Tree::Mode::DIRECTORY);
       }
     }

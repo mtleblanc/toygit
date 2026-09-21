@@ -8,12 +8,12 @@ namespace toygit {
 void doCommit() {
   auto d = Tree::buildFrom(std::filesystem::path{"."});
   d->store();
-  auto is = std::ifstream{".git/HEAD"};
+  auto is = std::ifstream{".toygit/HEAD"};
   std::string ref;
   std::string headPath;
   is >> ref >> headPath;
   assert(ref == "ref:");
-  auto headRefPath = std::filesystem::path(".git");
+  auto headRefPath = std::filesystem::path(".toygit");
   headRefPath.append(headPath);
   std::optional<std::string> parent{};
   if (std::filesystem::status(headRefPath).type() !=
