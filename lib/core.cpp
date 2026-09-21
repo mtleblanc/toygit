@@ -121,7 +121,7 @@ std::string_view Tree::content() {
     }
     text.append(modeString(mode));
     text.append(" ");
-    text.append(name);
+    text.append(nameView);
     text.append(1, 0);
     text.append(id.begin(), id.end());
   }
