@@ -9,10 +9,11 @@ namespace toygit {
 
 class Lockfile {
 public:
-  Lockfile(std::filesystem::path file);
+  Lockfile(std::filesystem::path file, bool readOriginal = false);
   ~Lockfile();
 
   Result<void> write(std::string_view sv);
+  Result<int> read(std::span<std::byte> dst);
   Result<void> commit();
   Result<void> release();
 
@@ -23,5 +24,6 @@ private:
   std::filesystem::path file_;
   std::filesystem::path lockFile_;
   File lf_;
+  File f_;
 };
 } // namespace toygit

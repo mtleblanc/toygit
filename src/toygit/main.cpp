@@ -1,5 +1,5 @@
 #include "toygit/commit.hpp"
-#include "toygit/lockfile.hpp"
+#include "toygit/dircache.hpp"
 #include <cassert>
 #include <print>
 #include <vector>
@@ -22,16 +22,18 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  if (args[0] == "commit") {
-    doCommit();
-    return 0;
-  }
+  try {
+    if (args[0] == "commit") {
+      doCommit();
+      return 0;
+    }
 
-  if (args[0] == "add") {
-    Lockfile test{{"testlock"}};
-    test.write("testing2");
-
-    test.commit();
+    if (args[0] == "add") {
+      auto index = DirCache::readFromFile();
+    }
+  } catch (const std::exception &e) {
+    std::println("Error: {}", e.what());
+    return 1;
   }
 
   return 0;

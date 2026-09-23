@@ -1,17 +1,27 @@
 #include "toygit/lockfile.hpp"
 #include <fcntl.h>
+#include <print>
 #include <tuple>
 #include <utility>
 
 namespace toygit {
-Lockfile::Lockfile(std::filesystem::path file)
+Lockfile::Lockfile(std::filesystem::path file, bool readOriginal)
     : file_{file}, lockFile_{std::move(file)} {
   lockFile_ += ".lock";
-  auto fd = open(lockFile_.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0644);
+  auto fd = ::open(lockFile_.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0644);
   if (fd < 0) {
-    throw std::make_error_code(static_cast<std::errc>(errno));
+    throw std::system_error(std::make_error_code(static_cast<std::errc>(errno)),
+                            "Creating lockfile");
   }
   lf_ = File{fd};
+  if (readOriginal) {
+    auto fd = ::open(file_.c_str(), O_RDONLY);
+    if (fd < 0) {
+      throw std::system_error(
+          std::make_error_code(static_cast<std::errc>(errno)), "Open");
+    }
+    f_ = File{fd};
+  }
 }
 
 Lockfile::~Lockfile() {
@@ -29,6 +39,7 @@ Lockfile::~Lockfile() {
 }
 
 Result<void> Lockfile::write(std::string_view sv) { return lf_.writeAll(sv); }
+Result<int> Lockfile::read(std::span<std::byte> dst) { return f_.read(dst); }
 
 Result<void> Lockfile::commit() {
   return lf_.fsync()

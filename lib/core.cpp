@@ -121,7 +121,7 @@ std::string_view Tree::content() {
   }
   std::string text{};
   for (const auto &[name, idMode] : children_) {
-    auto [id, mode] = idMode;
+    auto &[id, mode] = idMode;
     auto nameView = std::string_view{name};
     if (nameView.ends_with('/')) {
       nameView.remove_suffix(1);

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "toygit/util.hpp"
+#include <span>
 #include <unistd.h>
 #include <utility>
 namespace toygit {
@@ -20,6 +21,7 @@ public:
   ~File() { closeIfOpen(); }
 
   Result<void> writeAll(std::string_view sv);
+  Result<int> read(std::span<std::byte> dst);
   Result<void> fsync();
   Result<void> close();
 
