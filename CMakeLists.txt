@@ -8,7 +8,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
+if(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     add_compile_options(-fsanitize=address,undefined)
     add_link_options(-fsanitize=address,undefined)
     execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
