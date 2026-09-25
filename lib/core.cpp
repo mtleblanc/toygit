@@ -51,8 +51,8 @@ std::string packageContent(std::string_view type, std::string_view text) {
 } // namespace
 
 Id Object::id() {
-  auto hasher = Hasher::sha1Hasher();
-  return hasher.digest<std::tuple_size_v<Id>>(content());
+  auto hasher = sha1Hasher();
+  return hasher.digest(content());
 }
 
 void Object::store() {

@@ -1,4 +1,5 @@
 #include "toygit/core.hpp"
+#include "toygit/util.hpp"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -8,6 +9,7 @@ namespace toygit {
 class DirCache {
 public:
   static DirCache readFromFile();
+  Result<void> writeToFile();
 
   struct EntryHeader {
     int32_t ctimeSeconds;
@@ -22,6 +24,8 @@ public:
     int32_t size;
     Id id;
     int16_t flags;
+
+    EntryHeader &swapEndian();
   };
 
   struct Entry {

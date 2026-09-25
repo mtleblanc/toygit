@@ -1,4 +1,5 @@
 #include "toygit/dircache.hpp"
+#include "toygit/hash.hpp"
 #include "toygit/lockfile.hpp"
 #include <arpa/inet.h>
 #include <cassert>
@@ -7,10 +8,22 @@
 #include <filesystem>
 #include <print>
 #include <stdexcept>
+#include <system_error>
 
 namespace toygit {
 
 namespace {
+
+template <typename T> T NetworkToHost(T &n) {
+  if constexpr (sizeof(T) == 2) {
+    return (T)ntohs((uint16_t)n);
+  } else if constexpr (sizeof(T) == 4) {
+    return (T)ntohl((uint32_t)n);
+  } else {
+    std::unreachable();
+  }
+}
+
 struct Header {
   int32_t signature;
   int32_t version;
@@ -27,10 +40,15 @@ struct Header {
     static_assert(offsetof(Header, entries) == 8);
     Header h;
     std::memcpy(&h, buf, sizeof(Header));
-    h.signature = ::ntohl(h.signature);
-    h.version = ::ntohl(h.version);
-    h.entries = ::ntohl(h.entries);
+    h.swapEndian();
     return h;
+  }
+
+  Header &swapEndian() {
+    signature = NetworkToHost(signature);
+    version = NetworkToHost(version);
+    entries = NetworkToHost(entries);
+    return *this;
   }
 
   constexpr bool isValid() const {
@@ -39,11 +57,11 @@ struct Header {
   }
 };
 
-static constexpr size_t ENTRY_HEADER_SIZE = sizeof(DirCache::EntryHeader) - 2;
+static constexpr size_t ENTRY_HEADER_SIZE = 62;
 static constexpr size_t ENTRY_ALIGNMENT = 8;
 
 DirCache::EntryHeader entryFrom(std::byte *buf) {
-  static_assert(sizeof(DirCache::EntryHeader) == 64);
+  static_assert(sizeof(DirCache::EntryHeader) >= ENTRY_HEADER_SIZE);
   static_assert(offsetof(DirCache::EntryHeader, ctimeSeconds) == 0);
   static_assert(offsetof(DirCache::EntryHeader, ctimeNanos) == 4);
   static_assert(offsetof(DirCache::EntryHeader, mtimeSeconds) == 8);
@@ -58,23 +76,72 @@ DirCache::EntryHeader entryFrom(std::byte *buf) {
   static_assert(offsetof(DirCache::EntryHeader, flags) == 60);
   DirCache::EntryHeader h;
   std::memcpy(&h, buf, sizeof(DirCache::EntryHeader));
-  h.ctimeSeconds = ::ntohl(h.ctimeSeconds);
-  h.ctimeNanos = ::ntohl(h.ctimeNanos);
-  h.mtimeSeconds = ::ntohl(h.mtimeSeconds);
-  h.mtimeNanos = ::ntohl(h.mtimeNanos);
-  h.device = ::ntohl(h.device);
-  h.inode = ::ntohl(h.inode);
-  h.mdoe = ::ntohl(h.mdoe);
-  h.uid = ::ntohl(h.uid);
-  h.gid = ::ntohl(h.gid);
-  h.size = ::ntohl(h.size);
-  h.flags = ::ntohs(h.flags);
+  h.swapEndian();
   return h;
+}
+
+template <typename T> std::string_view sv(T &obj) {
+  return {reinterpret_cast<const char *>(&obj), sizeof(T)};
+}
+
+template <typename T> T unwrapOrThrow(Result<T> res, const char *reason) {
+  if (!res) {
+    throw std::system_error{res.error(), reason};
+  }
+  return res.value();
 }
 
 } // namespace
 
+DirCache::EntryHeader &DirCache::EntryHeader::swapEndian() {
+  ctimeSeconds = NetworkToHost(ctimeSeconds);
+  ctimeNanos = NetworkToHost(ctimeNanos);
+  mtimeSeconds = NetworkToHost(mtimeSeconds);
+  mtimeNanos = NetworkToHost(mtimeNanos);
+  device = NetworkToHost(device);
+  inode = NetworkToHost(inode);
+  mdoe = NetworkToHost(mdoe);
+  uid = NetworkToHost(uid);
+  gid = NetworkToHost(gid);
+  size = NetworkToHost(size);
+  flags = NetworkToHost(flags);
+  return *this;
+}
+
 static const auto dir = std::filesystem::path{".toygit/index"};
+
+Result<void> DirCache::writeToFile() {
+  auto lf = Lockfile{dir};
+  auto hasher = sha1Hasher();
+  hasher.init();
+  Header h =
+      Header{Header::SIGNATURE, 0x02, static_cast<int32_t>(entries.size())};
+  auto write = [&lf, &hasher](const auto &obj, size_t count = 0) {
+    auto bytes = sv(obj);
+    if (count != 0) {
+      bytes = bytes.substr(0, count);
+    }
+    hasher.update(bytes);
+    return unwrapOrThrow(lf.write(bytes), "Writing to index");
+  };
+  auto writeString = [&lf, &hasher](const auto &obj) {
+    hasher.update(obj);
+    return unwrapOrThrow(lf.write(obj), "Writing to index");
+  };
+
+  write(h.swapEndian());
+  static constinit std::byte PADDING[8] = {};
+  for (auto &e : entries) {
+    write(e.header.swapEndian(), ENTRY_HEADER_SIZE);
+    e.header.swapEndian();
+    writeString(e.filename);
+    auto padding = ENTRY_ALIGNMENT -
+                   ((ENTRY_HEADER_SIZE + e.filename.size()) % ENTRY_ALIGNMENT);
+    write(PADDING, padding);
+  }
+  auto hash = hasher.final();
+  return lf.write(sv(hash)).and_then([&lf] { return lf.commit(); });
+}
 
 DirCache DirCache::readFromFile() {
   auto lf = Lockfile{dir, true};

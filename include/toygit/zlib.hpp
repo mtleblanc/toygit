@@ -17,7 +17,7 @@ public:
       throw std::runtime_error("deflateInit failed");
   }
   std::tuple<ssize_t, ssize_t> deflateSome(std::string_view in,
-                                           std::span<char> out, bool flush);
+                                           std::span<char> out, int flush);
   std::string deflate(std::string_view in);
 
   ~DeflateStream() { deflateEnd(&stream_); }
@@ -38,7 +38,7 @@ public:
       throw std::runtime_error("inflateInit failed");
   }
   std::tuple<ssize_t, ssize_t> inflateSome(std::string_view in,
-                                           std::span<char> out, bool flush);
+                                           std::span<char> out, int flush);
   std::string inflate(std::string_view in);
   ~InflateStream() { inflateEnd(&stream_); }
 

@@ -30,6 +30,7 @@ int main(int argc, char *argv[]) {
 
     if (args[0] == "add") {
       auto index = DirCache::readFromFile();
+      std::ignore = index.writeToFile();
     }
   } catch (const std::exception &e) {
     std::println("Error: {}", e.what());

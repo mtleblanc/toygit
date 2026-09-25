@@ -4,10 +4,9 @@
 #include <openssl/evp.h>
 #include <stdexcept>
 #include <utility>
-#include <vector>
 
 namespace toygit {
-class Hasher {
+template <size_t N> class Hasher {
   class MessageDigestContext {
     EVP_MD_CTX *mdc;
 
@@ -62,27 +61,9 @@ class Hasher {
   MessageDigestContext mdc;
 
 public:
-  using Digest = std::vector<uint8_t>;
-
   explicit Hasher(EVP_MD *md) : md{md} {}
 
-  Digest operator()(std::string_view message) {
-    if (!EVP_DigestInit_ex(mdc.get(), md.get(), nullptr)) {
-      throw std::runtime_error{"Failed to initialize message digest"};
-    }
-    if (!EVP_DigestUpdate(mdc.get(), message.data(), message.size())) {
-      throw std::runtime_error{"Failed to update message digest"};
-    }
-
-    std::array<unsigned char, EVP_MAX_MD_SIZE> digest{};
-    unsigned int length{};
-    if (!EVP_DigestFinal_ex(mdc.get(), digest.data(), &length)) {
-      throw std::runtime_error{"Failed to extract message digest"};
-    }
-    return {digest.begin(), std::next(digest.begin(), length)};
-  }
-
-  template <size_t N> std::array<uint8_t, N> digest(std::string_view message) {
+  std::array<uint8_t, N> digest(std::string_view message) {
     if (!EVP_DigestInit_ex(mdc.get(), md.get(), nullptr)) {
       throw std::runtime_error{"Failed to initialize message digest"};
     }
@@ -100,12 +81,30 @@ public:
     return ret;
   }
 
-  static Hasher md5Hasher() {
-    return Hasher{EVP_MD_fetch(nullptr, "MD5", nullptr)};
+  void init() {
+    if (!EVP_DigestInit_ex(mdc.get(), md.get(), nullptr)) {
+      throw std::runtime_error{"Failed to initialize message digest"};
+    }
   }
 
-  static Hasher sha1Hasher() {
-    return Hasher{EVP_MD_fetch(nullptr, "SHA1", nullptr)};
+  void update(std::string_view message) {
+    if (!EVP_DigestUpdate(mdc.get(), message.data(), message.size())) {
+      throw std::runtime_error{"Failed to update message digest"};
+    }
+  }
+
+  std::array<uint8_t, N> final() {
+    std::array<unsigned char, EVP_MAX_MD_SIZE> digest{};
+    unsigned int length{};
+    if (!EVP_DigestFinal_ex(mdc.get(), digest.data(), &length)) {
+      throw std::runtime_error{"Failed to extract message digest"};
+    }
+    std::array<uint8_t, N> ret;
+    std::copy(digest.begin(), std::next(digest.begin(), N), ret.begin());
+    return ret;
   }
 };
+
+Hasher<16> md5Hasher();
+Hasher<20> sha1Hasher();
 } // namespace toygit

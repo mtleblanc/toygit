@@ -3,6 +3,7 @@ add_library(core STATIC
     core.cpp
     dircache.cpp
     file.cpp
+    hash.cpp
     lockfile.cpp
     zlib.cpp
 )

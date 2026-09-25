@@ -12,12 +12,12 @@ template <typename CharT> Bytef *zptr(CharT *c) {
 
 std::tuple<ssize_t, ssize_t> DeflateStream::deflateSome(std::string_view in,
                                                         std::span<char> out,
-                                                        bool flush) {
+                                                        int flush) {
   stream_.next_in = zptr(in.data());
   stream_.avail_in = std::ssize(in);
   stream_.next_out = zptr(out.data());
   stream_.avail_out = std::ssize(out);
-  auto ret = ::deflate(&stream_, flush ? Z_FINISH : Z_NO_FLUSH);
+  auto ret = ::deflate(&stream_, flush);
   assert(ret != Z_STREAM_ERROR);
   auto read = std::ssize(in) - stream_.avail_in;
   auto written = std::ssize(out) - stream_.avail_out;
@@ -34,12 +34,12 @@ std::string DeflateStream::deflate(std::string_view in) {
 
 std::tuple<ssize_t, ssize_t> InflateStream::inflateSome(std::string_view in,
                                                         std::span<char> out,
-                                                        bool flush) {
+                                                        int flush) {
   stream_.next_in = zptr(in.data());
   stream_.avail_in = std::ssize(in);
   stream_.next_out = zptr(out.data());
   stream_.avail_out = std::ssize(out);
-  auto ret = ::inflate(&stream_, flush ? Z_FINISH : Z_NO_FLUSH);
+  auto ret = ::inflate(&stream_, flush);
   assert(ret != Z_STREAM_ERROR);
   auto read = std::ssize(in) - stream_.avail_in;
   auto written = std::ssize(out) - stream_.avail_out;
