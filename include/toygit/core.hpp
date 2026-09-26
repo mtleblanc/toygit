@@ -36,7 +36,7 @@ public:
 
   std::string_view text();
 
-  static std::shared_ptr<Blob> buildFrom(std::filesystem::path);
+  static std::shared_ptr<Blob> buildFrom(const std::filesystem::path &);
   static std::shared_ptr<Blob> buildFromSymlink(std::filesystem::path);
 
 private:

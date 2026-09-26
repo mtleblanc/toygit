@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <print>
 #include <stdexcept>
+#include <sys/stat.h>
 #include <system_error>
 
 namespace toygit {
@@ -68,7 +69,7 @@ DirCache::EntryHeader entryFrom(std::byte *buf) {
   static_assert(offsetof(DirCache::EntryHeader, mtimeNanos) == 12);
   static_assert(offsetof(DirCache::EntryHeader, device) == 16);
   static_assert(offsetof(DirCache::EntryHeader, inode) == 20);
-  static_assert(offsetof(DirCache::EntryHeader, mdoe) == 24);
+  static_assert(offsetof(DirCache::EntryHeader, mode) == 24);
   static_assert(offsetof(DirCache::EntryHeader, uid) == 28);
   static_assert(offsetof(DirCache::EntryHeader, gid) == 32);
   static_assert(offsetof(DirCache::EntryHeader, size) == 36);
@@ -100,7 +101,7 @@ DirCache::EntryHeader &DirCache::EntryHeader::swapEndian() {
   mtimeNanos = NetworkToHost(mtimeNanos);
   device = NetworkToHost(device);
   inode = NetworkToHost(inode);
-  mdoe = NetworkToHost(mdoe);
+  mode = NetworkToHost(mode);
   uid = NetworkToHost(uid);
   gid = NetworkToHost(gid);
   size = NetworkToHost(size);
@@ -131,7 +132,7 @@ Result<void> DirCache::writeToFile() {
 
   write(h.swapEndian());
   static constinit std::byte PADDING[8] = {};
-  for (auto &e : entries) {
+  for (auto &[_, e] : entries) {
     write(e.header.swapEndian(), ENTRY_HEADER_SIZE);
     e.header.swapEndian();
     writeString(e.filename);
@@ -141,6 +142,43 @@ Result<void> DirCache::writeToFile() {
   }
   auto hash = hasher.final();
   return lf.write(sv(hash)).and_then([&lf] { return lf.commit(); });
+}
+
+Result<void> DirCache::add(const std::filesystem::path &path) {
+  auto relative = std::filesystem::relative(path);
+  struct stat status;
+  if (stat(path.c_str(), &status) < 0) {
+    return std::unexpected{std::make_error_code(static_cast<std::errc>(errno))};
+  };
+  auto header = EntryHeader::fromStat(status);
+  auto &entry = entries[path.string()];
+  // already in index, check if we actually need to update
+  if (entry.filename.size() != 0) {
+    if (header.ctimeSeconds == entry.header.ctimeSeconds &&
+        header.ctimeNanos == entry.header.ctimeNanos &&
+        header.mtimeSeconds == entry.header.mtimeSeconds &&
+        header.mtimeNanos == entry.header.ctimeNanos) {
+      std::println("{} not changed", path.string());
+      return {};
+    }
+  } else {
+    entry.filename = path.string();
+  }
+  auto object = Blob::buildFrom(path);
+  entry.header = header;
+  entry.header.flags = path.string().size();
+  entry.header.id = object->id();
+  std::println("{} added to index", path.string());
+  return {};
+}
+
+void DirCache::listFiles() {
+  for (auto &[_, e] : entries) {
+    std::print("{}", e.filename);
+    std::print(" {} c: {} m: {} sz: {}", e.header.modeString(),
+               e.header.ctimeSeconds, e.header.mtimeSeconds, e.header.size);
+    std::println("");
+  }
 }
 
 DirCache DirCache::readFromFile() {
@@ -238,8 +276,7 @@ DirCache DirCache::readFromFile() {
     }
     // TODO:: Should we check padding bytes are all 0?
     valid = valid.subspan(padding);
-    std::println("Added entry for {}", name);
-    cache.entries.emplace_back(entryHeader, name);
+    cache.entries.emplace(name, Entry{entryHeader, name});
   }
   // TODO: Should we check checksum?
   return cache;

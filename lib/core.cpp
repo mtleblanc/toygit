@@ -83,7 +83,7 @@ std::string_view Blob::text() {
   return std::string_view{std::next(endOfHeader, 1), content_.end()};
 }
 
-std::shared_ptr<Blob> Blob::buildFrom(std::filesystem::path path) {
+std::shared_ptr<Blob> Blob::buildFrom(const std::filesystem::path &path) {
   auto ifs = std::ifstream{path};
   auto text = std::string{std::istreambuf_iterator<char>{ifs},
                           std::istreambuf_iterator<char>{}};

@@ -30,6 +30,11 @@ int main(int argc, char *argv[]) {
 
     if (args[0] == "add") {
       auto index = DirCache::readFromFile();
+      if (args.size() < 2) {
+        std::println("Must provide path to file to add");
+        return 1;
+      }
+      std::ignore = index.add(std::filesystem::path(args[1]));
       std::ignore = index.writeToFile();
     }
   } catch (const std::exception &e) {
