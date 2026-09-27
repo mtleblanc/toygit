@@ -22,6 +22,8 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
+  auto repo = std::make_shared<Repository>(std::filesystem::path{""},
+                                           std::filesystem::path(".toygit"));
   try {
     if (args[0] == "commit") {
       doCommit();
@@ -29,7 +31,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (args[0] == "add") {
-      auto index = DirCache::readFromFile();
+      auto index = DirCache{repo};
+      std::ignore = index.readFromFile();
       if (args.size() < 2) {
         std::println("Must provide path to file to add");
         return 1;

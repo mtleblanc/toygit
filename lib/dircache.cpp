@@ -109,14 +109,12 @@ DirCache::EntryHeader &DirCache::EntryHeader::swapEndian() {
   return *this;
 }
 
-static const auto dir = std::filesystem::path{".toygit/index"};
-
 Result<void> DirCache::writeToFile() {
-  auto lf = Lockfile{dir};
   auto hasher = sha1Hasher();
   hasher.init();
   Header h =
       Header{Header::SIGNATURE, 0x02, static_cast<int32_t>(entries.size())};
+  auto &lf = this->lf;
   auto write = [&lf, &hasher](const auto &obj, size_t count = 0) {
     auto bytes = sv(obj);
     if (count != 0) {
@@ -150,7 +148,7 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
   if (stat(path.c_str(), &status) < 0) {
     return std::unexpected{std::make_error_code(static_cast<std::errc>(errno))};
   };
-  auto header = EntryHeader::fromStat(status);
+  auto header = EntryHeader{status};
   auto &entry = entries[path.string()];
   // already in index, check if we actually need to update
   if (entry.filename.size() != 0) {
@@ -181,8 +179,7 @@ void DirCache::listFiles() {
   }
 }
 
-DirCache DirCache::readFromFile() {
-  auto lf = Lockfile{dir, true};
+Result<void> DirCache::readFromFile() {
   std::byte buf[1024];
   static_assert(sizeof(buf) >= sizeof(Header));
   auto dst = std::span{buf, sizeof(Header)};
@@ -202,8 +199,6 @@ DirCache DirCache::readFromFile() {
     throw std::runtime_error{"Invalid index header"};
   }
 
-  std::println("Index has {} entries", header.entries);
-
   auto res = lf.read({buf, sizeof(buf)});
   if (!res) {
     throw std::system_error{res.error(), "Could not read index"};
@@ -212,9 +207,9 @@ DirCache DirCache::readFromFile() {
   if (res.value() == 0) {
     throw std::runtime_error{"Index file reached EOF before footer"};
   }
+  entries.clear();
   auto valid = std::span{buf, static_cast<size_t>(res.value())};
-  auto cache = DirCache{};
-  cache.version = header.version;
+  version = header.version;
   for (; header.entries > 0; --header.entries) {
     if (valid.size() < sizeof(DirCache::EntryHeader)) {
       static_assert(sizeof(DirCache::EntryHeader) <= sizeof(buf));
@@ -276,9 +271,9 @@ DirCache DirCache::readFromFile() {
     }
     // TODO:: Should we check padding bytes are all 0?
     valid = valid.subspan(padding);
-    cache.entries.emplace(name, Entry{entryHeader, name});
+    entries.emplace(name, Entry{entryHeader, name});
   }
   // TODO: Should we check checksum?
-  return cache;
+  return {};
 }
 } // namespace toygit

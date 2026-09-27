@@ -1,4 +1,6 @@
 #include "toygit/core.hpp"
+#include "toygit/lockfile.hpp"
+#include "toygit/repository.hpp"
 #include "toygit/util.hpp"
 #include <cstdint>
 #include <string>
@@ -9,7 +11,11 @@ namespace toygit {
 
 class DirCache {
 public:
-  static DirCache readFromFile();
+  DirCache(std::shared_ptr<Repository> repository)
+      : repository_{std::move(repository)},
+        lf{Lockfile{repository_->gitPath("index"), true}} {}
+
+  Result<void> readFromFile();
   Result<void> writeToFile();
   Result<void> add(const std::filesystem::path &file);
   void listFiles();
@@ -59,20 +65,18 @@ public:
       return (mode & S_IXUSR) != 0 ? 0100755 : 0100644;
     }
 
-    static EntryHeader fromStat(const struct stat &stat) {
-      return {.ctimeSeconds = static_cast<uint32_t>(stat.st_ctim.tv_sec),
-              .ctimeNanos = static_cast<uint32_t>(stat.st_ctim.tv_nsec),
-              .mtimeSeconds = static_cast<uint32_t>(stat.st_mtim.tv_sec),
-              .mtimeNanos = static_cast<uint32_t>(stat.st_mtim.tv_nsec),
-              .device = static_cast<uint32_t>(stat.st_dev),
-              .inode = static_cast<uint32_t>(stat.st_ino),
-              .mode = restrictMode(static_cast<uint32_t>(stat.st_mode)),
-              .uid = static_cast<uint32_t>(stat.st_uid),
-              .gid = static_cast<uint32_t>(stat.st_gid),
-              .size = static_cast<uint32_t>(stat.st_size),
-              .id = {},
-              .flags = 0};
-    }
+    EntryHeader() = default;
+    EntryHeader(const struct stat &stat)
+        : ctimeSeconds{static_cast<uint32_t>(stat.st_ctim.tv_sec)},
+          ctimeNanos{static_cast<uint32_t>(stat.st_ctim.tv_nsec)},
+          mtimeSeconds{static_cast<uint32_t>(stat.st_mtim.tv_sec)},
+          mtimeNanos{static_cast<uint32_t>(stat.st_mtim.tv_nsec)},
+          device{static_cast<uint32_t>(stat.st_dev)},
+          inode{static_cast<uint32_t>(stat.st_ino)},
+          mode{restrictMode(static_cast<uint32_t>(stat.st_mode))},
+          uid{static_cast<uint32_t>(stat.st_uid)},
+          gid{static_cast<uint32_t>(stat.st_gid)},
+          size{static_cast<uint32_t>(stat.st_size)} {}
   };
 
   struct Entry {
@@ -81,6 +85,8 @@ public:
   };
 
 private:
+  std::shared_ptr<Repository> repository_;
+  Lockfile lf;
   int32_t version{};
   std::map<std::string, Entry> entries{};
 };
