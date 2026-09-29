@@ -1,8 +1,11 @@
-#include "toygit/core.hpp"
+#pragma once
+
 #include "toygit/lockfile.hpp"
+#include "toygit/object.hpp"
 #include "toygit/repository.hpp"
 #include "toygit/util.hpp"
 #include <cstdint>
+#include <map>
 #include <string>
 #include <sys/stat.h>
 #include <utility>

@@ -1,11 +1,12 @@
 add_library(core STATIC
     commit.cpp
-    repository.cpp
     core.cpp
     dircache.cpp
     file.cpp
     hash.cpp
     lockfile.cpp
+    repository.cpp
+    tree.cpp
     zlib.cpp
 )
 

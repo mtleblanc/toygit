@@ -1,4 +1,5 @@
 #include "toygit/dircache.hpp"
+#include "toygit/core.hpp"
 #include "toygit/hash.hpp"
 #include "toygit/lockfile.hpp"
 #include <arpa/inet.h>

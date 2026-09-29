@@ -1,32 +1,18 @@
 #pragma once
 
+#include "toygit/object.hpp"
 #include <cstdint>
 #include <expected>
 #include <filesystem>
-#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
-#include <system_error>
 
 namespace toygit {
-
-using Id = std::array<uint8_t, 20>;
 
 void storeObject(std::string_view object);
 void storeBlob(std::string_view blob);
 std::string hexString(std::span<uint8_t>);
-
-class Object {
-public:
-  virtual ~Object() = default;
-  virtual std::string_view content() = 0;
-
-  Id id();
-  void store();
-
-  static std::expected<std::shared_ptr<Object>, std::error_code> load(Id);
-};
 
 class Blob : public Object {
 public:
@@ -40,17 +26,6 @@ public:
   static std::shared_ptr<Blob> buildFromSymlink(std::filesystem::path);
 
 private:
-  std::string content_;
-};
-
-class Tree : public Object {
-public:
-  enum class Mode { DIRECTORY, REGUALAR_FILE, EXECUTABLE_FILE, SYMLINK };
-  std::string_view content() override;
-  static std::shared_ptr<Tree> buildFrom(std::filesystem::path);
-
-private:
-  std::map<std::string, std::tuple<Id, Mode>> children_;
   std::string content_;
 };
 

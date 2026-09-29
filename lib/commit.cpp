@@ -1,5 +1,6 @@
 #include "toygit/commit.hpp"
 #include "toygit/core.hpp"
+#include "toygit/tree.hpp"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
