@@ -1,6 +1,7 @@
 add_library(core STATIC
     commit.cpp
     core.cpp
+    detail/object.cpp
     dircache.cpp
     file.cpp
     hash.cpp

@@ -1,4 +1,5 @@
 #include "toygit/core.hpp"
+#include "detail/object.hpp"
 #include "toygit/hash.hpp"
 #include "toygit/object.hpp"
 #include "toygit/tree.hpp"
@@ -36,19 +37,6 @@ void writeObject(std::string_view object, const std::filesystem::path &path) {
   ofs << deflated;
 }
 
-std::string packageContent(std::string_view type, std::string_view text) {
-  static constexpr auto MAX_DIGITS =
-      std::numeric_limits<std::string_view::size_type>::digits10;
-  auto data = std::string{type};
-  data.append(" ");
-  auto sz = std::array<char, MAX_DIGITS>{};
-  auto [ptr, ec] = std::to_chars(sz.begin(), sz.end(), text.size());
-  assert(ec != std::errc::value_too_large);
-  data.append(sz.begin(), ptr);
-  data.append(1, 0);
-  data.append(text);
-  return data;
-}
 } // namespace
 
 Id Object::id() {
@@ -94,105 +82,6 @@ std::shared_ptr<Blob> Blob::buildFrom(const std::filesystem::path &path) {
 std::shared_ptr<Blob> Blob::buildFromSymlink(std::filesystem::path path) {
   return std::make_shared<Blob>(std::filesystem::read_symlink(path).string());
 };
-
-namespace {
-const std::string &modeString(Tree::Mode m) {
-  static auto DIR = std::string{"40000"};
-  static auto REGULAR = std::string{"100644"};
-  static auto EXECUTABLE = std::string{"100755"};
-  static auto SYMLINK = std::string{"120000"};
-  switch (m) {
-  case Tree::Mode::DIRECTORY:
-    return DIR;
-  case Tree::Mode::REGUALAR_FILE:
-    return REGULAR;
-  case Tree::Mode::EXECUTABLE_FILE:
-    return EXECUTABLE;
-  case Tree::Mode::SYMLINK:
-    return SYMLINK;
-  default:
-    std::unreachable();
-  }
-}
-} // namespace
-
-std::string_view Tree::content() {
-  if (!content_.empty()) {
-    return content_;
-  }
-  std::string text{};
-  for (const auto &[name, idMode] : children_) {
-    auto &[id, mode] = idMode;
-    auto nameView = std::string_view{name};
-    if (nameView.ends_with('/')) {
-      nameView.remove_suffix(1);
-    }
-    text.append(modeString(mode));
-    text.append(" ");
-    text.append(nameView);
-    text.append(1, 0);
-    text.append(id.begin(), id.end());
-  }
-  return content_ = packageContent("tree", text);
-}
-
-bool shouldIgnore(const std::filesystem::directory_entry &de) {
-  if (de.is_regular_file()) {
-    return false;
-  }
-  if (de.is_directory()) {
-    auto filename = de.path().filename();
-    if (filename == "build" || filename == ".cache" || filename == ".git" ||
-        filename == ".toygit") {
-      return true;
-    }
-    return false;
-  }
-  return true;
-}
-
-std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
-  namespace fs = std::filesystem;
-  auto ec = std::error_code{};
-  auto status = fs::status(path, ec);
-  if (status.type() != fs::file_type::directory) {
-    return {};
-  }
-  auto res = std::make_shared<Tree>();
-  for (auto &de : fs::directory_iterator(path)) {
-    if (shouldIgnore(de)) {
-      continue;
-    }
-    auto thisPath = de.path();
-    if (de.is_directory()) {
-      auto entry = buildFrom(thisPath);
-      if (entry) {
-        entry->store();
-        res->children_[thisPath.filename().string() + "/"] =
-            std::make_tuple(entry->id(), Tree::Mode::DIRECTORY);
-      }
-    }
-    if (de.is_symlink()) {
-      auto entry = Blob::buildFromSymlink(thisPath);
-      if (entry) {
-        entry->store();
-        res->children_[thisPath.filename()] =
-            std::make_tuple(entry->id(), Tree::Mode::SYMLINK);
-      }
-    } else if (de.is_regular_file()) {
-      auto entry = Blob::buildFrom(thisPath);
-      if (entry) {
-        entry->store();
-        auto isExecutable = (de.status().permissions() &
-                             fs::perms::owner_exec) != fs::perms::none;
-        res->children_[thisPath.filename()] = std::make_tuple(
-            entry->id(), isExecutable ? Tree::Mode::EXECUTABLE_FILE
-                                      : Tree::Mode::REGUALAR_FILE);
-      }
-    }
-  }
-  return res;
-}
 
 std::string_view Commit::content() {
   if (!content_.empty()) {

@@ -3,6 +3,7 @@
 #include "toygit/lockfile.hpp"
 #include "toygit/object.hpp"
 #include "toygit/repository.hpp"
+#include "toygit/tree.hpp"
 #include "toygit/util.hpp"
 #include <cstdint>
 #include <map>
@@ -22,6 +23,9 @@ public:
   Result<void> writeToFile();
   Result<void> add(const std::filesystem::path &file);
   void listFiles();
+
+  friend std::shared_ptr<Tree>
+      Tree::buildFromIndex(std::shared_ptr<Repository>);
 
   struct EntryHeader {
     uint32_t ctimeSeconds;

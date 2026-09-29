@@ -1,4 +1,5 @@
 #include "toygit/commit.hpp"
+#include "toygit/core.hpp"
 #include "toygit/dircache.hpp"
 #include <cassert>
 #include <print>
@@ -39,6 +40,12 @@ int main(int argc, char *argv[]) {
       }
       std::ignore = index.add(std::filesystem::path(args[1]));
       std::ignore = index.writeToFile();
+    }
+
+    if (args[0] == "tree") {
+      auto tree = Tree::buildFromIndex(repo);
+      auto digest = tree->id();
+      std::println("{}", hexString(std::span{digest}));
     }
   } catch (const std::exception &e) {
     std::println("Error: {}", e.what());
