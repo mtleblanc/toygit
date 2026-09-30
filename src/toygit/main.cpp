@@ -1,3 +1,4 @@
+#include "toygit/add_command.hpp"
 #include "toygit/commit.hpp"
 #include "toygit/core.hpp"
 #include "toygit/dircache.hpp"
@@ -17,32 +18,35 @@ void printUsage(std::string_view programName) {
 
 int main(int argc, char *argv[]) {
   std::string programName{argv[0]};
-  std::vector<std::string> args(argv + 1, argv + argc);
-  if (args.empty()) {
+  if (argc < 2) {
     printUsage(programName);
     return 0;
   }
+  auto command = std::string{*(argv + 1)};
+  std::vector<std::string> args(argv + 2, argv + argc);
 
   auto repo = std::make_shared<Repository>(std::filesystem::path{""},
                                            std::filesystem::path(".toygit"));
   try {
-    if (args[0] == "commit") {
+    if (command == "commit") {
       doCommit();
       return 0;
     }
 
-    if (args[0] == "add") {
-      auto index = DirCache{repo};
-      std::ignore = index.readFromFile();
-      if (args.size() < 2) {
-        std::println("Must provide path to file to add");
-        return 1;
-      }
-      std::ignore = index.add(std::filesystem::path(args[1]));
-      std::ignore = index.writeToFile();
+    if (command == "add") {
+      auto cmd = AddCommand{repo};
+      if (auto res = cmd.run(args, {}); !res) {
+        throw res.error();
+      };
     }
 
-    if (args[0] == "tree") {
+    if (command == "list-files") {
+      auto index = DirCache{repo};
+      std::ignore = index.readFromFile();
+      index.listFiles();
+    }
+
+    if (command == "tree") {
       auto tree = Tree::buildFromIndex(repo);
       auto digest = tree->id();
       std::println("{}", hexString(std::span{digest}));

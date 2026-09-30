@@ -1,4 +1,5 @@
 add_library(core STATIC
+    add_command.cpp
     commit.cpp
     core.cpp
     detail/object.cpp

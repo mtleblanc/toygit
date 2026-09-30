@@ -2,7 +2,6 @@
 #include "detail/object.hpp"
 #include "toygit/hash.hpp"
 #include "toygit/object.hpp"
-#include "toygit/tree.hpp"
 #include "toygit/zlib.hpp"
 #include <cassert>
 #include <filesystem>
