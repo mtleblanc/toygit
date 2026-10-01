@@ -8,6 +8,7 @@ add_library(core STATIC
     hash.cpp
     lockfile.cpp
     repository.cpp
+    status_command.cpp
     tree.cpp
     zlib.cpp
 )

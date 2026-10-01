@@ -114,7 +114,7 @@ Result<void> DirCache::writeToFile() {
   auto hasher = sha1Hasher();
   hasher.init();
   Header h =
-      Header{Header::SIGNATURE, 0x02, static_cast<int32_t>(entries.size())};
+      Header{Header::SIGNATURE, 0x02, static_cast<int32_t>(entries_.size())};
   auto &lf = this->lf;
   auto write = [&lf, &hasher](const auto &obj, size_t count = 0) {
     auto bytes = sv(obj);
@@ -131,7 +131,7 @@ Result<void> DirCache::writeToFile() {
 
   write(h.swapEndian());
   static constinit std::byte PADDING[8] = {};
-  for (auto &[_, e] : entries) {
+  for (auto &[_, e] : entries_) {
     write(e.header.swapEndian(), ENTRY_HEADER_SIZE);
     e.header.swapEndian();
     writeString(e.filename);
@@ -161,7 +161,7 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
   }
 
   auto header = EntryHeader{status};
-  auto &entry = entries[relative.string()];
+  auto &entry = entries_[relative.string()];
   // already in index, check if we actually need to update
   if (entry.filename.size() != 0) {
     if (header.ctimeSeconds == entry.header.ctimeSeconds &&
@@ -183,7 +183,7 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
 }
 
 void DirCache::listFiles() {
-  for (auto &[_, e] : entries) {
+  for (auto &[_, e] : entries_) {
     std::print("{}", e.filename);
     std::print(" {} c: {} m: {} sz: {}", e.header.modeString(),
                e.header.ctimeSeconds, e.header.mtimeSeconds, e.header.size);
@@ -219,7 +219,7 @@ Result<void> DirCache::readFromFile() {
   if (res.value() == 0) {
     throw std::runtime_error{"Index file reached EOF before footer"};
   }
-  entries.clear();
+  entries_.clear();
   auto valid = std::span{buf, static_cast<size_t>(res.value())};
   version = header.version;
   for (; header.entries > 0; --header.entries) {
@@ -283,7 +283,7 @@ Result<void> DirCache::readFromFile() {
     }
     // TODO:: Should we check padding bytes are all 0?
     valid = valid.subspan(padding);
-    entries.emplace(name, Entry{entryHeader, name});
+    entries_.emplace(name, Entry{entryHeader, name});
   }
   // TODO: Should we check checksum?
   return {};

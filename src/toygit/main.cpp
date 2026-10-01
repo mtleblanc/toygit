@@ -2,7 +2,9 @@
 #include "toygit/commit.hpp"
 #include "toygit/core.hpp"
 #include "toygit/dircache.hpp"
+#include "toygit/status_command.hpp"
 #include <cassert>
+#include <filesystem>
 #include <print>
 #include <vector>
 
@@ -25,7 +27,7 @@ int main(int argc, char *argv[]) {
   auto command = std::string{*(argv + 1)};
   std::vector<std::string> args(argv + 2, argv + argc);
 
-  auto repo = std::make_shared<Repository>(std::filesystem::path{""},
+  auto repo = std::make_shared<Repository>(std::filesystem::current_path(),
                                            std::filesystem::path(".toygit"));
   try {
     if (command == "commit") {
@@ -35,6 +37,13 @@ int main(int argc, char *argv[]) {
 
     if (command == "add") {
       auto cmd = AddCommand{repo};
+      if (auto res = cmd.run(args, {}); !res) {
+        throw res.error();
+      };
+    }
+
+    if (command == "status") {
+      auto cmd = StatusCommand{repo};
       if (auto res = cmd.run(args, {}); !res) {
         throw res.error();
       };

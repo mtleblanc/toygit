@@ -91,10 +91,12 @@ public:
     std::string filename;
   };
 
+  const std::map<std::string, Entry> &entries() const { return entries_; }
+
 private:
   std::shared_ptr<Repository> repository_;
   Lockfile lf;
   int32_t version{};
-  std::map<std::string, Entry> entries{};
+  std::map<std::string, Entry> entries_{};
 };
 } // namespace toygit

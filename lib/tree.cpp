@@ -90,7 +90,7 @@ Tree::buildFromIndex(std::shared_ptr<Repository> repository) {
   treeStack.emplace_back(std::string{}, std::make_shared<Tree>());
   auto currentTree = std::get<1>(treeStack.back());
   auto prefix = std::string{};
-  for (auto &[name, data] : index.entries) {
+  for (auto &[name, data] : index.entries_) {
     while (!name.starts_with(prefix)) {
       assert(!treeStack.empty());
       auto dirName = std::get<0>(treeStack.back());
