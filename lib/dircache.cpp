@@ -146,28 +146,39 @@ Result<void> DirCache::writeToFile() {
 Result<void> DirCache::add(const std::filesystem::path &path) {
   auto relative = std::filesystem::relative(path);
   struct stat status;
-  if (stat(path.c_str(), &status) < 0) {
+  if (lstat(path.c_str(), &status) < 0) {
     return std::unexpected{std::make_error_code(static_cast<std::errc>(errno))};
   };
+  if (repository_->shouldIgnore(relative, status))
+    return {};
+  if (S_ISDIR(status.st_mode)) {
+    for (auto &de : std::filesystem::directory_iterator{path}) {
+      if (auto res = add(de.path()); !res) {
+        return res;
+      }
+    }
+    return {};
+  }
+
   auto header = EntryHeader{status};
-  auto &entry = entries[path.string()];
+  auto &entry = entries[relative.string()];
   // already in index, check if we actually need to update
   if (entry.filename.size() != 0) {
     if (header.ctimeSeconds == entry.header.ctimeSeconds &&
         header.ctimeNanos == entry.header.ctimeNanos &&
         header.mtimeSeconds == entry.header.mtimeSeconds &&
-        header.mtimeNanos == entry.header.ctimeNanos) {
-      std::println("{} not changed", path.string());
+        header.mtimeNanos == entry.header.mtimeNanos) {
+      std::println("{} not changed", relative.string());
       return {};
     }
   } else {
-    entry.filename = path.string();
+    entry.filename = relative.string();
   }
   auto object = Blob::buildFrom(path);
   entry.header = header;
-  entry.header.flags = path.string().size();
+  entry.header.flags = relative.string().size();
   entry.header.id = object->id();
-  std::println("{} added to index", path.string());
+  std::println("{} added to index", relative.string());
   return {};
 }
 

@@ -7,4 +7,20 @@ std::filesystem::path Repository::gitPath(std::string_view path) const {
 }
 
 const std::filesystem::path &Repository::root() const { return projectRoot_; }
+bool Repository::shouldIgnore(const std::filesystem::path &path,
+                              struct stat &stat) {
+
+  if (S_ISREG(stat.st_mode)) {
+    return false;
+  }
+  if (S_ISDIR(stat.st_mode)) {
+    auto filename = path.filename();
+    if (filename == "build" || filename == ".cache" || filename == ".git" ||
+        filename == ".toygit") {
+      return true;
+    }
+    return false;
+  }
+  return true;
+}
 } // namespace toygit

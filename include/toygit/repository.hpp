@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <sys/stat.h>
 
 namespace toygit {
 
@@ -11,6 +12,7 @@ public:
 
   std::filesystem::path gitPath(std::string_view path) const;
   const std::filesystem::path &root() const;
+  bool shouldIgnore(const std::filesystem::path &path, struct stat &stat);
 
 private:
   std::filesystem::path projectRoot_;
