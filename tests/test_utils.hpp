@@ -3,9 +3,23 @@
 #include <cerrno>
 #include <cstdlib>
 #include <filesystem>
+#include <ranges>
 #include <system_error>
+#include <vector>
 
 namespace toygit::test {
+
+namespace fs = std::filesystem;
+using namespace std::string_literals;
+inline fs::path operator"" _p(const char *p, [[maybe_unused]] size_t len) {
+  return fs::path{p};
+}
+
+using vs = std::vector<std::string>;
+template <typename Map> auto keys(const Map &map) {
+  return map | std::views::keys |
+         std::ranges::to<std::vector<typename Map::key_type>>();
+}
 
 // RAII wrapper around a uniquely-named temporary directory. Created via
 // mkdtemp (atomic — picks and creates the directory in one syscall, so no
