@@ -163,6 +163,15 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
     return {};
   }
 
+  auto parent = relative.parent_path();
+  while (!parent.empty()) {
+    auto it = entries_.find(parent.string());
+    if (it != entries_.end()) {
+      entries_.erase(it);
+    }
+    parent = parent.parent_path();
+  }
+
   auto header = EntryHeader{status};
   auto &entry = entries_[relative.string()];
   // already in index, check if we actually need to update

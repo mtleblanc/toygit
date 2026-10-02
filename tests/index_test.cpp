@@ -5,21 +5,43 @@
 #include <fstream>
 
 namespace toygit {
+
+namespace fs = std::filesystem;
+using namespace std::string_literals;
+fs::path operator"" _p(const char *p, [[maybe_unused]] size_t len) {
+  return fs::path{p};
+}
+
 TEST_CASE("Adding single entry to index", "[index]") {
   auto dir = test::TempDir{};
-  std::filesystem::create_directory(dir / std::filesystem::path{".git"});
+  fs::create_directory(dir / ".git"_p);
   auto repository = std::make_shared<Repository>(dir, ".git");
   auto index = DirCache{repository};
+  SECTION("adding single file") {
+    auto file = dir / "alice.txt"_p;
+    std::ofstream{file} << "alice";
+    *index.add(file);
 
-  auto file = dir.path() / std::filesystem::path{"alice.txt"};
-  std::ofstream{file} << "alice";
-  *index.readFromFile();
-  *index.add(file);
-  *index.writeToFile();
-  *index.readFromFile();
+    CHECK(index.entries().size() == 1);
+    REQUIRE(index.entries().at(file.filename().string()).filename ==
+            file.filename().string());
+  }
 
-  REQUIRE(index.entries().size() == 1);
-  REQUIRE(index.entries().at(file.filename().string()).filename ==
-          file.filename().string());
+  SECTION("replaces a file with a directory") {
+    auto aliceFile = dir / "alice.txt"_p;
+    auto bobFile = dir / "bob.txt"_p;
+    std::ofstream{aliceFile} << "alice";
+    std::ofstream{bobFile} << "bob";
+    *index.add(aliceFile);
+    *index.add(bobFile);
+    std::filesystem::remove(aliceFile);
+    std::filesystem::create_directory(aliceFile);
+    auto fileInAliceDir = aliceFile / "sub_alice.txt";
+    std::ofstream{fileInAliceDir} << "alice sub";
+    *index.add(fileInAliceDir);
+    CHECK(index.entries().size() == 2);
+    REQUIRE(index.entries().contains("bob.txt"s));
+    REQUIRE(index.entries().contains("alice.txt/sub_alice.txt"));
+  }
 }
 } // namespace toygit
