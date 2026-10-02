@@ -17,7 +17,7 @@ class DirCache {
 public:
   DirCache(std::shared_ptr<Repository> repository)
       : repository_{std::move(repository)},
-        lf{Lockfile{repository_->gitPath("index"), true}} {}
+        lf{Lockfile{repository_->gitPath("index")}} {}
 
   Result<void> readFromFile();
   Result<void> writeToFile();

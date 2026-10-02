@@ -1,11 +1,14 @@
 #include "toygit/dircache.hpp"
 #include "toygit/core.hpp"
+#include "toygit/file.hpp"
 #include "toygit/hash.hpp"
 #include "toygit/lockfile.hpp"
 #include <arpa/inet.h>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <expected>
+#include <fcntl.h>
 #include <filesystem>
 #include <print>
 #include <stdexcept>
@@ -144,7 +147,7 @@ Result<void> DirCache::writeToFile() {
 }
 
 Result<void> DirCache::add(const std::filesystem::path &path) {
-  auto relative = std::filesystem::relative(path);
+  auto relative = std::filesystem::relative(path, repository_->root());
   struct stat status;
   if (lstat(path.c_str(), &status) < 0) {
     return std::unexpected{std::make_error_code(static_cast<std::errc>(errno))};
@@ -192,11 +195,22 @@ void DirCache::listFiles() {
 }
 
 Result<void> DirCache::readFromFile() {
+  auto fd = ::open(repository_->gitPath("index").c_str(), O_RDONLY);
+  if (fd < 0) {
+    auto err = std::make_error_code(static_cast<std::errc>(errno));
+    if (err == std::errc::no_such_file_or_directory) {
+      entries_.clear();
+      version = 2;
+      return {};
+    }
+    return std::unexpected{err};
+  }
+  auto f = File{fd};
   std::byte buf[1024];
   static_assert(sizeof(buf) >= sizeof(Header));
   auto dst = std::span{buf, sizeof(Header)};
   do {
-    auto res = lf.read(dst);
+    auto res = f.read(dst);
     if (!res) {
       throw std::system_error{res.error(), "Could not read index"};
     }
@@ -211,7 +225,7 @@ Result<void> DirCache::readFromFile() {
     throw std::runtime_error{"Invalid index header"};
   }
 
-  auto res = lf.read({buf, sizeof(buf)});
+  auto res = f.read({buf, sizeof(buf)});
   if (!res) {
     throw std::system_error{res.error(), "Could not read index"};
   }
@@ -228,7 +242,7 @@ Result<void> DirCache::readFromFile() {
       std::memmove(buf, valid.data(), valid.size());
       valid = {buf, valid.size()};
       while (valid.size() < sizeof(DirCache::EntryHeader)) {
-        res = lf.read({buf + valid.size(), sizeof(buf) - valid.size()});
+        res = f.read({buf + valid.size(), sizeof(buf) - valid.size()});
         if (!res) {
           throw std::system_error{res.error(), "Could not read index"};
         }
@@ -252,7 +266,7 @@ Result<void> DirCache::readFromFile() {
       alignment += source.size();
       valid = valid.subspan(source.size());
       if (valid.size() == 0) {
-        res = lf.read({buf, sizeof(buf)});
+        res = f.read({buf, sizeof(buf)});
 
         if (!res) {
           throw std::system_error{res.error(), "Could not read index"};
@@ -271,7 +285,7 @@ Result<void> DirCache::readFromFile() {
     auto padding = ENTRY_ALIGNMENT - (alignment % ENTRY_ALIGNMENT);
     while (valid.size() < padding) {
       padding -= valid.size();
-      res = lf.read({buf, sizeof(buf)});
+      res = f.read({buf, sizeof(buf)});
 
       if (!res) {
         throw std::system_error{res.error(), "Could not read index"};
