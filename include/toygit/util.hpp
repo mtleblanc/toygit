@@ -2,6 +2,14 @@
 
 #include <expected>
 #include <system_error>
+#define TRY(...)                                                               \
+  __extension__({                                                              \
+    auto &&_try_r = (__VA_ARGS__);                                             \
+    if (!_try_r) {                                                             \
+      return std::unexpected{std::move(_try_r.error())};                       \
+    }                                                                          \
+    *_try_r;                                                                   \
+  })
 namespace toygit {
 
 template <typename T> using Result = std::expected<T, std::error_code>;

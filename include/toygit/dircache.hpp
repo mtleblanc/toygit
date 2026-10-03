@@ -98,5 +98,6 @@ private:
   Lockfile lf;
   int32_t version{};
   std::map<std::string, Entry> entries_{};
+  bool changed{false};
 };
 } // namespace toygit

@@ -88,14 +88,6 @@ DirCache::EntryHeader entryFrom(std::byte *buf) {
 template <typename T> std::string_view sv(T &obj) {
   return {reinterpret_cast<const char *>(&obj), sizeof(T)};
 }
-
-template <typename T> T unwrapOrThrow(Result<T> res, const char *reason) {
-  if (!res) {
-    throw std::system_error{res.error(), reason};
-  }
-  return res.value();
-}
-
 } // namespace
 
 DirCache::EntryHeader &DirCache::EntryHeader::swapEndian() {
@@ -114,6 +106,9 @@ DirCache::EntryHeader &DirCache::EntryHeader::swapEndian() {
 }
 
 Result<void> DirCache::writeToFile() {
+  if (!changed) {
+    return {};
+  }
   auto hasher = sha1Hasher();
   hasher.init();
   Header h =
@@ -125,25 +120,28 @@ Result<void> DirCache::writeToFile() {
       bytes = bytes.substr(0, count);
     }
     hasher.update(bytes);
-    return unwrapOrThrow(lf.write(bytes), "Writing to index");
+    return lf.write(bytes);
   };
   auto writeString = [&lf, &hasher](const auto &obj) {
     hasher.update(obj);
-    return unwrapOrThrow(lf.write(obj), "Writing to index");
+    return lf.write(obj);
   };
 
-  write(h.swapEndian());
+  TRY(write(h.swapEndian()));
   static constinit std::byte PADDING[8] = {};
   for (auto &[_, e] : entries_) {
-    write(e.header.swapEndian(), ENTRY_HEADER_SIZE);
+    TRY(write(e.header.swapEndian(), ENTRY_HEADER_SIZE));
     e.header.swapEndian();
-    writeString(e.filename);
+    TRY(writeString(e.filename));
     auto padding = ENTRY_ALIGNMENT -
                    ((ENTRY_HEADER_SIZE + e.filename.size()) % ENTRY_ALIGNMENT);
-    write(PADDING, padding);
+    TRY(write(PADDING, padding));
   }
   auto hash = hasher.final();
-  return lf.write(sv(hash)).and_then([&lf] { return lf.commit(); });
+  TRY(lf.write(sv(hash)));
+  TRY(lf.commit());
+  changed = false;
+  return {};
 }
 
 Result<void> DirCache::add(const std::filesystem::path &path) {
@@ -163,13 +161,18 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
     return {};
   }
 
+  // check if a directory has replaced a file
   auto parent = relative.parent_path();
   while (!parent.empty()) {
-    auto it = entries_.find(parent.string());
-    if (it != entries_.end()) {
-      entries_.erase(it);
-    }
+    entries_.erase(parent.string());
     parent = parent.parent_path();
+  }
+
+  // check if a file has replaced a directory
+  auto dirPrefix = relative.string() + "/";
+  auto it = entries_.lower_bound(dirPrefix);
+  while (it != entries_.end() && it->first.starts_with(dirPrefix)) {
+    it = entries_.erase(it);
   }
 
   auto header = EntryHeader{status};
@@ -180,7 +183,6 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
         header.ctimeNanos == entry.header.ctimeNanos &&
         header.mtimeSeconds == entry.header.mtimeSeconds &&
         header.mtimeNanos == entry.header.mtimeNanos) {
-      std::println("{} not changed", relative.string());
       return {};
     }
   } else {
@@ -190,7 +192,7 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
   entry.header = header;
   entry.header.flags = relative.string().size();
   entry.header.id = object->id();
-  std::println("{} added to index", relative.string());
+  changed = true;
   return {};
 }
 
