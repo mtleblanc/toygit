@@ -1,12 +1,13 @@
 #include "toygit/file.hpp"
 #include <expected>
 #include <span>
+#include <system_error>
 
 namespace toygit {
 
 namespace {
 auto err() {
-  return std::unexpected{std::make_error_code(static_cast<std::errc>(errno))};
+  return std::unexpected{std::error_code{errno, std::system_category()}};
 }
 } // namespace
 
