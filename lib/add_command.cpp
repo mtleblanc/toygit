@@ -10,7 +10,12 @@ Result<void> AddCommand::run(
     return res;
   };
   for (auto file : args) {
-    auto path = std::filesystem::path{file};
+    auto ec = std::error_code{};
+    auto path = std::filesystem::absolute(std::filesystem::path{file}, ec)
+                    .lexically_normal();
+    if (ec) {
+      return std::unexpected{ec};
+    }
     if (auto res = index.add(path); !res) {
       return res;
     }

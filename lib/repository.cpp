@@ -11,7 +11,7 @@ const std::filesystem::path &Repository::root() const { return projectRoot_; }
 bool Repository::shouldIgnore(const std::filesystem::path &path,
                               struct stat &stat) const {
 
-  if (S_ISREG(stat.st_mode)) {
+  if (S_ISREG(stat.st_mode) || S_ISLNK(stat.st_mode)) {
     return false;
   }
   if (S_ISDIR(stat.st_mode)) {
@@ -22,6 +22,7 @@ bool Repository::shouldIgnore(const std::filesystem::path &path,
     }
     return false;
   }
+  std::println("Skipping {}", path.c_str());
   return true;
 }
 

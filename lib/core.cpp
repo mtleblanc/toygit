@@ -78,7 +78,8 @@ std::shared_ptr<Blob> Blob::buildFrom(const std::filesystem::path &path) {
   return std::make_shared<Blob>(std::move(text));
 };
 
-std::shared_ptr<Blob> Blob::buildFromSymlink(std::filesystem::path path) {
+std::shared_ptr<Blob>
+Blob::buildFromSymlink(const std::filesystem::path &path) {
   return std::make_shared<Blob>(std::filesystem::read_symlink(path).string());
 };
 

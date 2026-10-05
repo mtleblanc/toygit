@@ -144,8 +144,11 @@ Result<void> DirCache::writeToFile() {
   return {};
 }
 
+/**
+ * precondition: path and repository_ root are both absolute and canonical
+ */
 Result<void> DirCache::add(const std::filesystem::path &path) {
-  auto relative = std::filesystem::relative(path, repository_->root());
+  auto relative = path.lexically_relative(repository_->root());
   struct stat status;
   if (lstat(path.c_str(), &status) < 0) {
     return std::unexpected{std::make_error_code(static_cast<std::errc>(errno))};
@@ -188,7 +191,12 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
   } else {
     entry.filename = relative.string();
   }
-  auto object = Blob::buildFrom(path);
+  auto object = std::shared_ptr<Blob>{};
+  if (S_ISLNK(status.st_mode)) {
+    object = Blob::buildFromSymlink(path);
+  } else {
+    object = Blob::buildFrom(path);
+  }
   entry.header = header;
   entry.header.flags = relative.string().size();
   entry.header.id = object->id();
