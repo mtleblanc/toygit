@@ -14,6 +14,8 @@ public:
   virtual Result<void> run(std::span<std::string> args,
                            const std::map<std::string, std::string> &env) = 0;
 
+  virtual ~Command() = default;
+
 protected:
   std::shared_ptr<Repository> repository;
 };

@@ -10,6 +10,7 @@
     }                                                                          \
     *_try_r;                                                                   \
   })
+
 namespace toygit {
 
 template <typename T> using Result = std::expected<T, std::error_code>;

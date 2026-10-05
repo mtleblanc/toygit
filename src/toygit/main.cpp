@@ -5,6 +5,7 @@
 #include "toygit/status_command.hpp"
 #include <cassert>
 #include <filesystem>
+#include <iostream>
 #include <print>
 #include <vector>
 
@@ -29,24 +30,27 @@ int main(int argc, char *argv[]) {
 
   auto repo = std::make_shared<Repository>(std::filesystem::current_path(),
                                            std::filesystem::path(".toygit"));
+
+  auto comm = std::unique_ptr<Command>{};
+  if (command == "add") {
+    comm = std::make_unique<AddCommand>(repo);
+  } else if (command == "status") {
+    comm = std::make_unique<StatusCommand>(repo);
+  }
+
+  if (comm) {
+    auto res = comm->run(args, {});
+    if (res) {
+      return 0;
+    }
+    std::println(std::cerr, "{}", res.error().message());
+    return res.error().value();
+  }
+
   try {
     if (command == "commit") {
       doCommit();
       return 0;
-    }
-
-    if (command == "add") {
-      auto cmd = AddCommand{repo};
-      if (auto res = cmd.run(args, {}); !res) {
-        throw res.error();
-      };
-    }
-
-    if (command == "status") {
-      auto cmd = StatusCommand{repo};
-      if (auto res = cmd.run(args, {}); !res) {
-        throw res.error();
-      };
     }
 
     if (command == "list-files") {
