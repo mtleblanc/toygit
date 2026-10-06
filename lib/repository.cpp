@@ -22,7 +22,6 @@ bool Repository::shouldIgnore(const std::filesystem::path &path,
     }
     return false;
   }
-  std::println("Skipping {}", path.c_str());
   return true;
 }
 

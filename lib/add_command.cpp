@@ -1,5 +1,8 @@
 #include "toygit/add_command.hpp"
 #include "toygit/dircache.hpp"
+#include "toygit/error.hpp"
+#include <iostream>
+#include <system_error>
 
 namespace toygit {
 Result<void> AddCommand::run(
@@ -10,7 +13,16 @@ Result<void> AddCommand::run(
     return res;
   };
   for (auto file : args) {
+    struct stat stat;
     auto ec = std::error_code{};
+    if (lstat(file.c_str(), &stat) < 0) {
+      ec = std::error_code(errno, std::system_category());
+      if (ec == std::errc::no_such_file_or_directory) {
+        std::println(std::cerr, "fatal: pathspec '{}' did not match any files",
+                     file);
+        return std::unexpected{GitError::FATAL};
+      }
+    }
     auto path = std::filesystem::absolute(std::filesystem::path{file}, ec)
                     .lexically_normal();
     if (ec) {

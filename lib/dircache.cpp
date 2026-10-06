@@ -10,7 +10,6 @@
 #include <expected>
 #include <fcntl.h>
 #include <filesystem>
-#include <iostream>
 #include <print>
 #include <stdexcept>
 #include <sys/stat.h>
@@ -149,68 +148,60 @@ Result<void> DirCache::writeToFile() {
  * precondition: path and repository_ root are both absolute and canonical
  */
 Result<void> DirCache::add(const std::filesystem::path &path) {
-  auto addRecursive =
-      [dc = this](this auto &&self,
-                  const std::filesystem::path &path) -> Result<void> {
-    auto relative = path.lexically_relative(dc->repository_->root());
-    struct stat status;
-    if (lstat(path.c_str(), &status) < 0) {
-      auto ec = std::error_code{errno, std::system_category()};
-      if (ec == std::errc::no_such_file_or_directory) {
-        std::println(std::cerr, "fatal: pathspec '{}' did not match any files",
-                     path.c_str());
-        return std::unexpected{ec};
-      }
-    };
-    if (dc->repository_->shouldIgnore(relative, status))
-      return {};
-    if (S_ISDIR(status.st_mode)) {
-      for (auto &de : std::filesystem::directory_iterator{path}) {
-        TRY(self(de.path()));
-      }
-      return {};
-    }
-
-    // check if a directory has replaced a file
-    auto parent = relative.parent_path();
-    while (!parent.empty()) {
-      dc->entries_.erase(parent.string());
-      parent = parent.parent_path();
-    }
-
-    // check if a file has replaced a directory
-    auto dirPrefix = relative.string() + "/";
-    auto it = dc->entries_.lower_bound(dirPrefix);
-    while (it != dc->entries_.end() && it->first.starts_with(dirPrefix)) {
-      it = dc->entries_.erase(it);
-    }
-
-    auto header = EntryHeader{status};
-    auto &entry = dc->entries_[relative.string()];
-    // already in index, check if we actually need to update
-    if (entry.filename.size() != 0) {
-      if (header.ctimeSeconds == entry.header.ctimeSeconds &&
-          header.ctimeNanos == entry.header.ctimeNanos &&
-          header.mtimeSeconds == entry.header.mtimeSeconds &&
-          header.mtimeNanos == entry.header.mtimeNanos) {
-        return {};
-      }
-    } else {
-      entry.filename = relative.string();
-    }
-    auto object = std::shared_ptr<Blob>{};
-    if (S_ISLNK(status.st_mode)) {
-      object = Blob::buildFromSymlink(path);
-    } else {
-      object = Blob::buildFrom(path);
-    }
-    entry.header = header;
-    entry.header.flags = relative.string().size();
-    entry.header.id = object->id();
-    dc->changed = true;
-    return {};
+  auto relative = path.lexically_relative(repository_->root());
+  struct stat status;
+  if (lstat(path.c_str(), &status) < 0) {
+    return std::unexpected{std::make_error_code(static_cast<std::errc>(errno))};
   };
-  return addRecursive(path);
+  if (repository_->shouldIgnore(relative, status))
+    return {};
+  if (S_ISDIR(status.st_mode)) {
+    for (auto &de : std::filesystem::directory_iterator{path}) {
+      if (auto res = add(de.path()); !res) {
+        return res;
+      }
+    }
+    return {};
+  }
+
+  // check if a directory has replaced a file
+  auto parent = relative.parent_path();
+  while (!parent.empty()) {
+    entries_.erase(parent.string());
+    parent = parent.parent_path();
+  }
+
+  // check if a file has replaced a directory
+  auto dirPrefix = relative.string() + "/";
+  auto it = entries_.lower_bound(dirPrefix);
+  while (it != entries_.end() && it->first.starts_with(dirPrefix)) {
+    it = entries_.erase(it);
+  }
+
+  auto header = EntryHeader{status};
+  auto &entry = entries_[relative.string()];
+  // already in index, check if we actually need to update
+  if (entry.filename.size() != 0) {
+    if (header.ctimeSeconds == entry.header.ctimeSeconds &&
+        header.ctimeNanos == entry.header.ctimeNanos &&
+        header.mtimeSeconds == entry.header.mtimeSeconds &&
+        header.mtimeNanos == entry.header.mtimeNanos) {
+      return {};
+    }
+  } else {
+    entry.filename = relative.string();
+  }
+  auto object = std::shared_ptr<Blob>{};
+  if (S_ISLNK(status.st_mode)) {
+    object = Blob::buildFromSymlink(path);
+  } else {
+    object = Blob::buildFrom(path);
+  }
+  entry.header = header;
+  entry.header.flags = relative.string().size();
+  entry.header.id = object->id();
+  changed = true;
+  return {};
 }
 
 void DirCache::listFiles() {
@@ -225,7 +216,7 @@ void DirCache::listFiles() {
 Result<void> DirCache::readFromFile() {
   auto fd = ::open(repository_->gitPath("index").c_str(), O_RDONLY);
   if (fd < 0) {
-    auto err = std::error_code{errno, std::system_category()};
+    auto err = std::make_error_code(static_cast<std::errc>(errno));
     if (err == std::errc::no_such_file_or_directory) {
       entries_.clear();
       version = 2;
