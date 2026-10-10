@@ -9,7 +9,7 @@ Result<void> AddCommand::run(
     std::span<std::string> args,
     [[maybe_unused]] const std::map<std::string, std::string> &env) {
   auto index = DirCache{repository};
-  TRY(index.lockForReading());
+  TRY(index.lock());
   TRY(index.readFromFile());
   for (auto file : args) {
     struct stat stat;

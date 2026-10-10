@@ -18,7 +18,7 @@ public:
   DirCache(std::shared_ptr<Repository> repository)
       : repository_{std::move(repository)}, lf{} {}
 
-  Result<void> lockForReading();
+  Result<void> lock();
   Result<void> readFromFile();
   Result<void> writeToFile();
   Result<void> add(const std::filesystem::path &file);

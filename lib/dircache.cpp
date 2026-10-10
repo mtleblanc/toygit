@@ -106,7 +106,7 @@ DirCache::EntryHeader &DirCache::EntryHeader::swapEndian() {
   return *this;
 }
 
-Result<void> DirCache::lockForReading() {
+Result<void> DirCache::lock() {
   if (!lf) {
     try {
       lf.emplace(repository_->gitPath("index"));
