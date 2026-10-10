@@ -1,5 +1,6 @@
 
 #include "test_utils.hpp"
+#include "toygit/add_command.hpp"
 #include "toygit/dircache.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
@@ -12,7 +13,7 @@ TEST_CASE("Index", "[index]") {
   fs::create_directory(dir / ".git");
   auto repository = std::make_shared<Repository>(dir, ".git");
   auto index = DirCache{repository};
-  SECTION("adding single file") {
+  SECTION("adds a single file") {
     auto file = createFile(dir / "alice.txt", "alice");
     *index.add(file);
     REQUIRE(keys(index.entries()) == vs{"alice.txt"});
@@ -54,6 +55,22 @@ TEST_CASE("Index", "[index]") {
     alice = createFile(alice, "alice");
     *index.add(alice);
     REQUIRE(keys(index.entries()) == vs{"alice.txt", "bob.txt"});
+  }
+}
+
+TEST_CASE("Add command", "[add]") {
+  auto dir = test::TempDir{};
+  fs::create_directory(dir / ".git");
+  auto repository = std::make_shared<Repository>(dir, ".git", dir);
+  auto index = DirCache{repository};
+  auto cmd = AddCommand{repository};
+  SECTION("adds a single file") {
+    auto file = createFile(dir / "alice.txt", "alice");
+    auto args = vs{"alice.txt"};
+    *cmd.run(args, {});
+    *index.readFromFile();
+    REQUIRE(keys(index.entries()) == vs{"alice.txt"});
+    REQUIRE(index.entries().at("alice.txt").header.modeString() == "100644");
   }
 }
 } // namespace toygit

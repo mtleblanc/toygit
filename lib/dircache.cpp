@@ -1,5 +1,6 @@
 #include "toygit/dircache.hpp"
 #include "toygit/core.hpp"
+#include "toygit/error.hpp"
 #include "toygit/file.hpp"
 #include "toygit/hash.hpp"
 #include "toygit/lockfile.hpp"
@@ -105,7 +106,21 @@ DirCache::EntryHeader &DirCache::EntryHeader::swapEndian() {
   return *this;
 }
 
+Result<void> DirCache::lockForReading() {
+  if (!lf) {
+    try {
+      lf.emplace(repository_->gitPath("index"));
+    } catch (...) {
+      return std::unexpected{GitError::FATAL};
+    }
+  }
+  return {};
+}
+
 Result<void> DirCache::writeToFile() {
+  if (!lf) {
+    return std::unexpected{GitError::FATAL};
+  }
   if (!changed) {
     return {};
   }
@@ -120,11 +135,11 @@ Result<void> DirCache::writeToFile() {
       bytes = bytes.substr(0, count);
     }
     hasher.update(bytes);
-    return lf.write(bytes);
+    return lf->write(bytes);
   };
   auto writeString = [&lf, &hasher](const auto &obj) {
     hasher.update(obj);
-    return lf.write(obj);
+    return lf->write(obj);
   };
 
   TRY(write(h.swapEndian()));
@@ -138,8 +153,9 @@ Result<void> DirCache::writeToFile() {
     TRY(write(PADDING, padding));
   }
   auto hash = hasher.final();
-  TRY(lf.write(sv(hash)));
-  TRY(lf.commit());
+  TRY(lf->write(sv(hash)));
+  TRY(lf->commit());
+  lf.reset();
   changed = false;
   return {};
 }

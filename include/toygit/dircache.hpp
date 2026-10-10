@@ -16,9 +16,9 @@ namespace toygit {
 class DirCache {
 public:
   DirCache(std::shared_ptr<Repository> repository)
-      : repository_{std::move(repository)},
-        lf{Lockfile{repository_->gitPath("index")}} {}
+      : repository_{std::move(repository)}, lf{} {}
 
+  Result<void> lockForReading();
   Result<void> readFromFile();
   Result<void> writeToFile();
   Result<void> add(const std::filesystem::path &file);
@@ -95,7 +95,7 @@ public:
 
 private:
   std::shared_ptr<Repository> repository_;
-  Lockfile lf;
+  std::optional<Lockfile> lf;
   int32_t version{};
   std::map<std::string, Entry> entries_{};
   bool changed{false};
