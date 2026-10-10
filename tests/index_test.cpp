@@ -72,5 +72,30 @@ TEST_CASE("Add command", "[add]") {
     REQUIRE(keys(index.entries()) == vs{"alice.txt"});
     REQUIRE(index.entries().at("alice.txt").header.modeString() == "100644");
   }
+  SECTION("adds multiple files") {
+    auto alice = createFile(dir / "alice.txt", "alice");
+    auto bob = createFile(dir / "bob.txt", "bob");
+    auto args = vs{"alice.txt", "bob.txt"};
+    *cmd.run(args, {});
+    *index.readFromFile();
+    REQUIRE(keys(index.entries()) == vs{"alice.txt", "bob.txt"});
+    REQUIRE(index.entries().at("alice.txt").header.modeString() == "100644");
+    REQUIRE(index.entries().at("bob.txt").header.modeString() == "100644");
+  }
+  SECTION("adds files incrementally") {
+    auto alice = createFile(dir / "alice.txt", "alice");
+    auto bob = createFile(dir / "bob.txt", "bob");
+    auto args = vs{"alice.txt"};
+    *cmd.run(args, {});
+    *index.readFromFile();
+    REQUIRE(keys(index.entries()) == vs{"alice.txt"});
+    REQUIRE(index.entries().at("alice.txt").header.modeString() == "100644");
+    args = vs{"bob.txt"};
+    *cmd.run(args, {});
+    *index.readFromFile();
+    REQUIRE(keys(index.entries()) == vs{"alice.txt", "bob.txt"});
+    REQUIRE(index.entries().at("alice.txt").header.modeString() == "100644");
+    REQUIRE(index.entries().at("bob.txt").header.modeString() == "100644");
+  }
 }
 } // namespace toygit
