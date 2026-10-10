@@ -14,6 +14,10 @@
 namespace toygit {
 
 template <typename T> using Result = std::expected<T, std::error_code>;
+inline auto errnoCode() {
+  return std::error_code{errno, std::system_category()};
+}
+inline auto errnoResult() { return std::unexpected{errnoCode()}; }
 
 class NoMove {
 public:

@@ -2,6 +2,7 @@
 #include "toygit/commit.hpp"
 #include "toygit/core.hpp"
 #include "toygit/dircache.hpp"
+#include "toygit/error.hpp"
 #include "toygit/status_command.hpp"
 #include <cassert>
 #include <filesystem>
@@ -43,7 +44,11 @@ int main(int argc, char *argv[]) {
     if (res) {
       return 0;
     }
-    std::println(std::cerr, "{}", res.error().message());
+    auto err = res.error();
+    // assume if we have a GitError that diagnostics were already printed.
+    if (!isGitError(err)) {
+      std::println(std::cerr, "{}", res.error().message());
+    }
     return res.error().value();
   }
 

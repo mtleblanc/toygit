@@ -22,6 +22,7 @@ Result<void> AddCommand::run(
                      file);
         return std::unexpected{GitError::FATAL};
       }
+      return std::unexpected{ec};
     }
     auto path = std::filesystem::absolute(std::filesystem::path{file}, ec)
                     .lexically_normal();

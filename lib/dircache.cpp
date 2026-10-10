@@ -151,7 +151,7 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
   auto relative = path.lexically_relative(repository_->root());
   struct stat status;
   if (lstat(path.c_str(), &status) < 0) {
-    return std::unexpected{std::make_error_code(static_cast<std::errc>(errno))};
+    return errnoResult();
   };
   if (repository_->shouldIgnore(relative, status))
     return {};
@@ -216,7 +216,7 @@ void DirCache::listFiles() {
 Result<void> DirCache::readFromFile() {
   auto fd = ::open(repository_->gitPath("index").c_str(), O_RDONLY);
   if (fd < 0) {
-    auto err = std::make_error_code(static_cast<std::errc>(errno));
+    auto err = errnoCode();
     if (err == std::errc::no_such_file_or_directory) {
       entries_.clear();
       version = 2;

@@ -10,6 +10,7 @@ struct GitErrorCategory : std::error_category {
   std::string message(int num) const override;
 };
 std::error_code make_error_code(GitError e);
+bool isGitError(std::error_code err);
 bool isFailure(std::error_code err);
 bool isFatal(std::error_code err);
 } // namespace toygit
