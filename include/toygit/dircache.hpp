@@ -24,7 +24,7 @@ public:
   Result<void> add(const std::filesystem::path &file);
   void listFiles();
 
-  friend std::shared_ptr<Tree>
+  friend Result<std::shared_ptr<Tree>>
       Tree::buildFromIndex(std::shared_ptr<Repository>);
 
   struct EntryHeader {

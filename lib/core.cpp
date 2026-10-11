@@ -2,10 +2,13 @@
 #include "detail/object.hpp"
 #include "toygit/hash.hpp"
 #include "toygit/object.hpp"
+#include "toygit/util.hpp"
 #include "toygit/zlib.hpp"
 #include <cassert>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <print>
 #include <utility>
 
@@ -71,14 +74,18 @@ std::string_view Blob::text() {
   return std::string_view{std::next(endOfHeader, 1), content_.end()};
 }
 
-std::shared_ptr<Blob> Blob::buildFrom(const std::filesystem::path &path) {
+Result<std::shared_ptr<Blob>>
+Blob::buildFrom(const std::filesystem::path &path) {
   auto ifs = std::ifstream{path};
+  if (!ifs || !ifs.is_open()) {
+    return errnoResult();
+  }
   auto text = std::string{std::istreambuf_iterator<char>{ifs},
                           std::istreambuf_iterator<char>{}};
   return std::make_shared<Blob>(std::move(text));
 };
 
-std::shared_ptr<Blob>
+Result<std::shared_ptr<Blob>>
 Blob::buildFromSymlink(const std::filesystem::path &path) {
   return std::make_shared<Blob>(std::filesystem::read_symlink(path).string());
 };

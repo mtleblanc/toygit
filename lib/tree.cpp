@@ -80,7 +80,7 @@ bool shouldIgnore(const std::filesystem::directory_entry &de) {
   return true;
 }
 
-std::shared_ptr<Tree>
+Result<std::shared_ptr<Tree>>
 Tree::buildFromIndex(std::shared_ptr<Repository> repository) {
   auto index = DirCache{repository};
   std::ignore = index.readFromFile();
@@ -133,7 +133,7 @@ Tree::buildFromIndex(std::shared_ptr<Repository> repository) {
 
   return currentTree;
 }
-std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
+Result<std::shared_ptr<Tree>> Tree::buildFrom(std::filesystem::path path) {
   namespace fs = std::filesystem;
   auto ec = std::error_code{};
   auto status = fs::status(path, ec);
@@ -147,7 +147,7 @@ std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
     }
     auto thisPath = de.path();
     if (de.is_directory()) {
-      auto entry = buildFrom(thisPath);
+      auto entry = TRY(buildFrom(thisPath));
       if (entry) {
         entry->store();
         res->children_[thisPath.filename().string() + "/"] =
@@ -155,14 +155,14 @@ std::shared_ptr<Tree> Tree::buildFrom(std::filesystem::path path) {
       }
     }
     if (de.is_symlink()) {
-      auto entry = Blob::buildFromSymlink(thisPath);
+      auto entry = TRY(Blob::buildFromSymlink(thisPath));
       if (entry) {
         entry->store();
         res->children_[thisPath.filename()] =
             std::make_tuple(entry->id(), Tree::Mode::SYMLINK);
       }
     } else if (de.is_regular_file()) {
-      auto entry = Blob::buildFrom(thisPath);
+      auto entry = TRY(Blob::buildFrom(thisPath));
       if (entry) {
         entry->store();
         auto isExecutable = (de.status().permissions() &

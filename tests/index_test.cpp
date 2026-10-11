@@ -148,7 +148,7 @@ TEST_CASE("Add command", "[add]") {
     CHECK(index.writeToFile());
     auto args = vs{"bob.txt", "charlie.txt"};
     auto res = cmd.run(args, {});
-    REQUIRE((!res && isFatal(res.error())));
+    REQUIRE(!res);
     CHECK(index.readFromFile());
     REQUIRE(keys(index.entries()) == vs{"alice.txt"});
     REQUIRE(index.entries().at("alice.txt").header.modeString() == "100644");

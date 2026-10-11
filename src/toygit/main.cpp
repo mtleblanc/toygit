@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (command == "tree") {
-      auto tree = Tree::buildFromIndex(repo);
+      auto tree = Tree::buildFromIndex(repo).value();
       auto digest = tree->id();
       std::println("{}", hexString(std::span{digest}));
     }
