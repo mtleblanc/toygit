@@ -11,9 +11,7 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <print>
-#include <utility>
 
 namespace toygit {
 
@@ -77,16 +75,16 @@ std::string_view Blob::text() {
   return std::string_view{std::next(endOfHeader, 1), content_.end()};
 }
 
-Result<std::shared_ptr<Blob>>
-Blob::buildFrom(const std::filesystem::path &path) {
-  auto ifs = std::ifstream{path};
-  if (!ifs) {
-    return errnoResult();
-  }
-  auto text = std::string{std::istreambuf_iterator<char>{ifs},
-                          std::istreambuf_iterator<char>{}};
-  return std::make_shared<Blob>(std::move(text));
-};
+// Result<std::shared_ptr<Blob>>
+// Blob::buildFrom(const std::filesystem::path &path) {
+//   auto ifs = std::ifstream{path};
+//   if (!ifs) {
+//     return errnoResult();
+//   }
+//   auto text = std::string{std::istreambuf_iterator<char>{ifs},
+//                           std::istreambuf_iterator<char>{}};
+//   return std::make_shared<Blob>(std::move(text));
+// };
 
 Result<std::shared_ptr<Blob>> Blob::buildFrom(const std::filesystem::path &path,
                                               const struct ::stat &status) {
@@ -144,13 +142,14 @@ Result<std::shared_ptr<Blob>> Blob::buildFrom(const std::filesystem::path &path,
   if (text.size() > statSize) {
     return std::unexpected{GitError::ERROR};
   }
-  return {};
+  return std::make_shared<Blob>(text);
 }
 
-Result<std::shared_ptr<Blob>>
-Blob::buildFromSymlink(const std::filesystem::path &path) {
-  return std::make_shared<Blob>(std::filesystem::read_symlink(path).string());
-};
+// Result<std::shared_ptr<Blob>>
+// Blob::buildFromSymlink(const std::filesystem::path &path) {
+//   return
+//   std::make_shared<Blob>(std::filesystem::read_symlink(path).string());
+// };
 
 std::string_view Commit::content() {
   if (!content_.empty()) {

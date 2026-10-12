@@ -6,8 +6,8 @@
 #include <fstream>
 
 namespace toygit {
-void doCommit() {
-  auto d = Tree::buildFrom(std::filesystem::path{"."}).value();
+void doCommit(std::shared_ptr<Repository> repository) {
+  auto d = Tree::buildFromIndex(repository).value();
   d->store();
   auto is = std::ifstream{".toygit/HEAD"};
   std::string ref;

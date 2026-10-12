@@ -133,47 +133,5 @@ Tree::buildFromIndex(std::shared_ptr<Repository> repository) {
 
   return currentTree;
 }
-Result<std::shared_ptr<Tree>> Tree::buildFrom(std::filesystem::path path) {
-  namespace fs = std::filesystem;
-  auto ec = std::error_code{};
-  auto status = fs::status(path, ec);
-  if (status.type() != fs::file_type::directory) {
-    return {};
-  }
-  auto res = std::make_shared<Tree>();
-  for (auto &de : fs::directory_iterator(path)) {
-    if (shouldIgnore(de)) {
-      continue;
-    }
-    auto thisPath = de.path();
-    if (de.is_directory()) {
-      auto entry = TRY(buildFrom(thisPath));
-      if (entry) {
-        entry->store();
-        res->children_[thisPath.filename().string() + "/"] =
-            std::make_tuple(entry->id(), Tree::Mode::DIRECTORY);
-      }
-    }
-    if (de.is_symlink()) {
-      auto entry = TRY(Blob::buildFromSymlink(thisPath));
-      if (entry) {
-        entry->store();
-        res->children_[thisPath.filename()] =
-            std::make_tuple(entry->id(), Tree::Mode::SYMLINK);
-      }
-    } else if (de.is_regular_file()) {
-      auto entry = TRY(Blob::buildFrom(thisPath));
-      if (entry) {
-        entry->store();
-        auto isExecutable = (de.status().permissions() &
-                             fs::perms::owner_exec) != fs::perms::none;
-        res->children_[thisPath.filename()] = std::make_tuple(
-            entry->id(), isExecutable ? Tree::Mode::EXECUTABLE_FILE
-                                      : Tree::Mode::REGUALAR_FILE);
-      }
-    }
-  }
-  return res;
-}
 
 } // namespace toygit

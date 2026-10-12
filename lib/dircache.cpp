@@ -207,12 +207,7 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
   } else {
     entry.filename = relative.string();
   }
-  auto object = std::shared_ptr<Blob>{};
-  if (S_ISLNK(status.st_mode)) {
-    object = TRY(Blob::buildFromSymlink(path));
-  } else {
-    object = TRY(Blob::buildFrom(path));
-  }
+  auto object = TRY(Blob::buildFrom(path, status));
   entry.header = header;
   entry.header.flags = relative.string().size();
   entry.header.id = object->id();
