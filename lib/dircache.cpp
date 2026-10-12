@@ -160,21 +160,27 @@ Result<void> DirCache::writeToFile() {
   return {};
 }
 
-/**
- * precondition: path and repository_ root are both absolute and canonical
- */
 Result<void> DirCache::add(const std::filesystem::path &path) {
   auto localPath = path.lexically_relative(repository_->root());
   auto filename = localPath.string();
   struct ::stat status;
   if (::lstat(path.c_str(), &status) < 0) {
     return errnoResult();
-  };
+  }
   if (repository_->shouldIgnore(localPath, status))
     return {};
   if (S_ISDIR(status.st_mode)) {
-    for (auto &de : std::filesystem::directory_iterator{path}) {
-      TRY(add(de.path()));
+    auto ec = std::error_code{};
+    auto it = std::filesystem::directory_iterator{path, ec};
+    if (ec) {
+      return std::unexpected{ec};
+    }
+    while (it != std::filesystem::directory_iterator{}) {
+      TRY(add(it->path()));
+      it.increment(ec);
+      if (ec) {
+        return std::unexpected{ec};
+      }
     }
     return {};
   }
@@ -205,9 +211,9 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
     }
   }
   auto object = TRY(Blob::buildFrom(path, status));
-  header.flags = filename.size();
+  header.flags = std::min(filename.size(), 0xFFFuz);
   header.id = object->id();
-  entries_[filename] = {header, localPath.string()};
+  entries_[filename] = {header, filename};
   changed = true;
   return {};
 }
