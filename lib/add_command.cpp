@@ -24,11 +24,9 @@ Result<void> AddCommand::run(
       }
       return std::unexpected{ec};
     }
-    auto path = std::filesystem::absolute(std::filesystem::path{fullPath}, ec)
-                    .lexically_normal();
-    if (ec) {
-      return std::unexpected{ec};
-    }
+    auto path =
+        TRY_EC(std::filesystem::absolute, std::filesystem::path{fullPath})
+            .lexically_normal();
     TRY(index.add(path));
   }
   return index.writeToFile();

@@ -4,6 +4,7 @@
 #include "toygit/file.hpp"
 #include "toygit/hash.hpp"
 #include "toygit/lockfile.hpp"
+#include "toygit/util.hpp"
 #include <arpa/inet.h>
 #include <cassert>
 #include <cstddef>
@@ -170,17 +171,10 @@ Result<void> DirCache::add(const std::filesystem::path &path) {
   if (repository_->shouldIgnore(localPath, status))
     return {};
   if (S_ISDIR(status.st_mode)) {
-    auto ec = std::error_code{};
-    auto it = std::filesystem::directory_iterator{path, ec};
-    if (ec) {
-      return std::unexpected{ec};
-    }
+    auto it = TRY_EC(std::filesystem::directory_iterator, path);
     while (it != std::filesystem::directory_iterator{}) {
       TRY(add(it->path()));
-      it.increment(ec);
-      if (ec) {
-        return std::unexpected{ec};
-      }
+      TRY_EC_M(it, increment);
     }
     return {};
   }

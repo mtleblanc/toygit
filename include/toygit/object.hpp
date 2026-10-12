@@ -1,5 +1,6 @@
 #pragma once
 
+#include "toygit/util.hpp"
 #include <array>
 #include <cstdint>
 #include <expected>
@@ -17,6 +18,6 @@ public:
   Id id();
   void store();
 
-  static std::expected<std::shared_ptr<Object>, std::error_code> load(Id);
+  static Result<std::shared_ptr<Object>> load();
 };
 } // namespace toygit

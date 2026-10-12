@@ -1,4 +1,5 @@
 #include "toygit/lockfile.hpp"
+#include "toygit/util.hpp"
 #include <fcntl.h>
 #include <print>
 #include <system_error>
@@ -37,11 +38,7 @@ Result<void> Lockfile::commit() {
   return lf_.fsync()
       .and_then([this] { return lf_.close(); })
       .and_then([this] -> Result<void> {
-        std::error_code ec;
-        std::filesystem::rename(lockFile_, file_, ec);
-        if (ec) {
-          return std::unexpected(ec);
-        }
+        TRY_EC(std::filesystem::rename, lockFile_, file_);
         state_ = State::Committed;
         return {};
       });
@@ -49,11 +46,7 @@ Result<void> Lockfile::commit() {
 
 Result<void> Lockfile::release() {
   return lf_.close().and_then([this] -> Result<void> {
-    std::error_code ec;
-    std::filesystem::remove(lockFile_, ec);
-    if (ec) {
-      return std::unexpected(ec);
-    }
+    std::ignore = TRY_EC(std::filesystem::remove, lockFile_);
     state_ = State::Released;
     return {};
   });
