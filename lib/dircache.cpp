@@ -164,53 +164,50 @@ Result<void> DirCache::writeToFile() {
  * precondition: path and repository_ root are both absolute and canonical
  */
 Result<void> DirCache::add(const std::filesystem::path &path) {
-  auto relative = path.lexically_relative(repository_->root());
+  auto localPath = path.lexically_relative(repository_->root());
+  auto filename = localPath.string();
   struct ::stat status;
-  if (lstat(path.c_str(), &status) < 0) {
+  if (::lstat(path.c_str(), &status) < 0) {
     return errnoResult();
   };
-  if (repository_->shouldIgnore(relative, status))
+  if (repository_->shouldIgnore(localPath, status))
     return {};
   if (S_ISDIR(status.st_mode)) {
     for (auto &de : std::filesystem::directory_iterator{path}) {
-      if (auto res = add(de.path()); !res) {
-        return res;
-      }
+      TRY(add(de.path()));
     }
     return {};
   }
 
   // check if a directory has replaced a file
-  auto parent = relative.parent_path();
+  auto parent = localPath.parent_path();
   while (!parent.empty()) {
     entries_.erase(parent.string());
     parent = parent.parent_path();
   }
 
   // check if a file has replaced a directory
-  auto dirPrefix = relative.string() + "/";
+  auto dirPrefix = filename + "/";
   auto it = entries_.lower_bound(dirPrefix);
   while (it != entries_.end() && it->first.starts_with(dirPrefix)) {
     it = entries_.erase(it);
   }
 
   auto header = EntryHeader{status};
-  auto &entry = entries_[relative.string()];
-  // already in index, check if we actually need to update
-  if (entry.filename.size() != 0) {
-    if (header.ctimeSeconds == entry.header.ctimeSeconds &&
-        header.ctimeNanos == entry.header.ctimeNanos &&
-        header.mtimeSeconds == entry.header.mtimeSeconds &&
-        header.mtimeNanos == entry.header.mtimeNanos) {
+  auto existingEntry = entries_.find(filename);
+  if (existingEntry != entries_.end()) {
+    auto &existingHeader = existingEntry->second.header;
+    if (header.ctimeSeconds == existingHeader.ctimeSeconds &&
+        header.ctimeNanos == existingHeader.ctimeNanos &&
+        header.mtimeSeconds == existingHeader.mtimeSeconds &&
+        header.mtimeNanos == existingHeader.mtimeNanos) {
       return {};
     }
-  } else {
-    entry.filename = relative.string();
   }
   auto object = TRY(Blob::buildFrom(path, status));
-  entry.header = header;
-  entry.header.flags = relative.string().size();
-  entry.header.id = object->id();
+  header.flags = filename.size();
+  header.id = object->id();
+  entries_[filename] = {header, localPath.string()};
   changed = true;
   return {};
 }

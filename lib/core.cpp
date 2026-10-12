@@ -8,6 +8,7 @@
 #include "toygit/zlib.hpp"
 #include <cassert>
 #include <cstring>
+#include <expected>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -75,17 +76,6 @@ std::string_view Blob::text() {
   return std::string_view{std::next(endOfHeader, 1), content_.end()};
 }
 
-// Result<std::shared_ptr<Blob>>
-// Blob::buildFrom(const std::filesystem::path &path) {
-//   auto ifs = std::ifstream{path};
-//   if (!ifs) {
-//     return errnoResult();
-//   }
-//   auto text = std::string{std::istreambuf_iterator<char>{ifs},
-//                           std::istreambuf_iterator<char>{}};
-//   return std::make_shared<Blob>(std::move(text));
-// };
-
 Result<std::shared_ptr<Blob>> Blob::buildFrom(const std::filesystem::path &path,
                                               const struct ::stat &status) {
   auto text = std::string{};
@@ -93,7 +83,7 @@ Result<std::shared_ptr<Blob>> Blob::buildFrom(const std::filesystem::path &path,
   constexpr auto MAX_PATH_LEN = static_cast<size_t>(PATH_MAX);
   auto statSize = static_cast<size_t>(status.st_size);
   if (S_ISLNK(status.st_mode)) {
-    for (auto sz = std::max(statSize, MAX_PATH_LEN) + 1;; sz *= 2) {
+    for (auto sz = std::min(statSize, MAX_PATH_LEN) + 1;; sz *= 2) {
       text.resize_and_overwrite(sz, [&](char *buf, size_t n) {
         auto bytesRead = ::readlink(path.c_str(), buf, n);
         if (bytesRead < 0) {
@@ -108,16 +98,16 @@ Result<std::shared_ptr<Blob>> Blob::buildFrom(const std::filesystem::path &path,
       if (text.size() < sz)
         return std::make_shared<Blob>(text);
       if (sz > MAX_PATH_LEN) {
-        return std::unexpected{GitError::ERROR};
+        return std::unexpected{GitError::TODO_ERROR_HANDLING};
       }
     }
   }
 
-  auto fd = ::open(path.c_str(), O_RDONLY);
-  if (fd < 0) {
-    return errnoResult();
+  if (!S_ISREG(status.st_mode)) {
+    return std::unexpected{GitError::TODO_ERROR_HANDLING};
   }
-  auto file = File(fd);
+
+  auto file = TRY(File::open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC));
   text.resize_and_overwrite(statSize + 1, [&](char *buf, size_t n) {
     auto buffer = std::span{reinterpret_cast<std::byte *>(buf), n};
     while (!buffer.empty()) {
@@ -139,17 +129,11 @@ Result<std::shared_ptr<Blob>> Blob::buildFrom(const std::filesystem::path &path,
   if (ec) {
     return std::unexpected{ec};
   }
-  if (text.size() > statSize) {
-    return std::unexpected{GitError::ERROR};
+  if (text.size() != statSize) {
+    return std::unexpected{GitError::TODO_ERROR_HANDLING};
   }
   return std::make_shared<Blob>(text);
 }
-
-// Result<std::shared_ptr<Blob>>
-// Blob::buildFromSymlink(const std::filesystem::path &path) {
-//   return
-//   std::make_shared<Blob>(std::filesystem::read_symlink(path).string());
-// };
 
 std::string_view Commit::content() {
   if (!content_.empty()) {

@@ -24,9 +24,6 @@ public:
 
   std::string_view text();
 
-  static Result<std::shared_ptr<Blob>> buildFrom(const std::filesystem::path &);
-  // static Result<std::shared_ptr<Blob>>
-  // buildFromSymlink(const std::filesystem::path &);
   static Result<std::shared_ptr<Blob>> buildFrom(const std::filesystem::path &,
                                                  const struct ::stat &);
 

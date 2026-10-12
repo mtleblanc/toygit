@@ -23,11 +23,11 @@ std::string GitErrorCategory::message(int num) const {
 
 bool isGitError(std::error_code err) { return err.category() == cat; }
 
-bool isFailure(std::error_code err) {
+bool isFatal(std::error_code err) {
   return err.category() == cat &&
          err.value() == static_cast<int>(GitError::FATAL);
 }
-bool isFatal(std::error_code err) {
+bool isFailure(std::error_code err) {
   return err.category() == cat &&
          err.value() != static_cast<int>(GitError::NONE);
 }

@@ -15,7 +15,7 @@ Result<void> AddCommand::run(
     struct ::stat stat;
     auto ec = std::error_code{};
     auto fullPath = repository->cwd() / file;
-    if (lstat(fullPath.c_str(), &stat) < 0) {
+    if (::lstat(fullPath.c_str(), &stat) < 0) {
       ec = std::error_code(errno, std::system_category());
       if (ec == std::errc::no_such_file_or_directory) {
         std::println(std::cerr, "fatal: pathspec '{}' did not match any files",

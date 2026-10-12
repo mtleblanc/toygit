@@ -3,7 +3,7 @@
 #include <system_error>
 #include <type_traits>
 namespace toygit {
-enum class GitError { NONE = 0, ERROR, FATAL };
+enum class GitError { NONE = 0, TODO_ERROR_HANDLING, ERROR, FATAL };
 
 struct GitErrorCategory : std::error_category {
   const char *name() const noexcept override { return "toygit"; }

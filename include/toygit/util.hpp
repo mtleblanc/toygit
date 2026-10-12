@@ -8,7 +8,7 @@
     if (!_try_r) {                                                             \
       return std::unexpected{std::move(_try_r.error())};                       \
     }                                                                          \
-    *_try_r;                                                                   \
+    *std::move(_try_r);                                                        \
   })
 
 namespace toygit {
