@@ -73,7 +73,7 @@ public:
     }
 
     EntryHeader() = default;
-    EntryHeader(const struct stat &stat)
+    EntryHeader(const struct ::stat &stat)
         : ctimeSeconds{static_cast<uint32_t>(stat.st_ctim.tv_sec)},
           ctimeNanos{static_cast<uint32_t>(stat.st_ctim.tv_nsec)},
           mtimeSeconds{static_cast<uint32_t>(stat.st_mtim.tv_sec)},

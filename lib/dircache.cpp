@@ -165,7 +165,7 @@ Result<void> DirCache::writeToFile() {
  */
 Result<void> DirCache::add(const std::filesystem::path &path) {
   auto relative = path.lexically_relative(repository_->root());
-  struct stat status;
+  struct ::stat status;
   if (lstat(path.c_str(), &status) < 0) {
     return errnoResult();
   };

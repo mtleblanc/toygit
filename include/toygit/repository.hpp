@@ -18,7 +18,8 @@ public:
   };
   const std::filesystem::path &root() const { return projectRoot_; };
   const std::filesystem::path &cwd() const { return cwd_; };
-  bool shouldIgnore(const std::filesystem::path &path, struct stat &stat) const;
+  bool shouldIgnore(const std::filesystem::path &path,
+                    const struct ::stat &stat) const;
   bool shouldIgnore(const std::filesystem::directory_entry &de) const;
 
 private:

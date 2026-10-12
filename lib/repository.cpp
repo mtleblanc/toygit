@@ -3,7 +3,7 @@
 namespace toygit {
 
 bool Repository::shouldIgnore(const std::filesystem::path &path,
-                              struct stat &stat) const {
+                              const struct ::stat &stat) const {
 
   if (S_ISREG(stat.st_mode) || S_ISLNK(stat.st_mode)) {
     return false;

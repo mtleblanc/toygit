@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <sys/stat.h>
 
 namespace toygit {
 
@@ -26,6 +27,8 @@ public:
   static Result<std::shared_ptr<Blob>> buildFrom(const std::filesystem::path &);
   static Result<std::shared_ptr<Blob>>
   buildFromSymlink(const std::filesystem::path &);
+  static Result<std::shared_ptr<Blob>> buildFrom(const std::filesystem::path &,
+                                                 const struct ::stat &);
 
 private:
   std::string content_;

@@ -12,7 +12,7 @@ Result<void> AddCommand::run(
   TRY(index.lock());
   TRY(index.readFromFile());
   for (auto file : args) {
-    struct stat stat;
+    struct ::stat stat;
     auto ec = std::error_code{};
     auto fullPath = repository->cwd() / file;
     if (lstat(fullPath.c_str(), &stat) < 0) {
